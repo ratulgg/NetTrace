@@ -22,15 +22,20 @@ public class NetTraceServer {
     private static final int PORT = 5000;
 
     public static void main(String[] args) throws IOException {
-        HttpServer server = HttpServer.create(new InetSocketAddress(PORT), 0);
-        server.setExecutor(Executors.newVirtualThreadPerTaskExecutor());
+    // Read dynamic port from cloud platform or default to 5000 locally
+    String envPort = System.getenv("PORT");
+    int port = (envPort != null) ? Integer.parseInt(envPort) : 5000;
 
-        server.createContext("/", new StaticFileHandler());
-        server.createContext("/api/run", new ApiRunHandler());
-        server.createContext("/api/tests", new ApiTestsHandler());
-        server.start();
-        System.out.println(">>> NetTrace Engine with Packet Queues running on http://localhost:" + PORT);
-    }
+    HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
+    server.setExecutor(Executors.newVirtualThreadPerTaskExecutor());
+
+    server.createContext("/", new StaticFileHandler());
+    server.createContext("/api/run", new ApiRunHandler());
+    server.createContext("/api/tests", new ApiTestsHandler());
+
+    server.start();
+    System.out.println(">>> NetTrace Engine running live on port " + port);
+}
     // Live Unit Test Runner Endpoint
 static class ApiTestsHandler implements HttpHandler {
     @Override
