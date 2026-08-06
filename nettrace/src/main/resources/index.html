@@ -537,7 +537,7 @@
                 <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.825rem; font-weight: 800; color: var(--text-secondary);">
                     <span>Live Hop Route (<span id="lbl-src" style="color: var(--text-primary);">192.168.1.105</span> ➔ <span id="lbl-dst" style="color: var(--text-primary);">10.0.4.22</span>)</span>
                     
-                    <!-- 3-WAY MODEL TOGGLE CONTROL WITH CLEAN INLINE SVG ICON FOR DUAL COMPARISON -->
+                    <!-- 3-WAY MODEL TOGGLE CONTROL WITH INLINE SVG ICON -->
                     <div class="model-toggle-group">
                         <button class="model-pill-btn" id="btn-model-a" onclick="switchModel('modelA')">Model A</button>
                         <button class="model-pill-btn" id="btn-model-b" onclick="switchModel('modelB')">Model B</button>
@@ -716,7 +716,7 @@
     <script>
         let latestStreamData = [];
         let config = { srcIp: "192.168.1.105", dstIp: "10.0.4.22", mode: "normal", batchSize: "10", engine: "dual" };
-        let runCount = 3; // Tracks simulation runs on the timeline
+        let runCount = 0; // Starts clean at 0
 
         function closeSidebar() {
             const sidebar = document.getElementById('sidebarNav');
@@ -789,17 +789,17 @@
             updateChartColors();
         }
 
-        // TIME-SERIES APM GRAPH INITIALIZATION
+        // TIME-SERIES APM GRAPH INITIALIZATION (STARTS COMPLETELY BLANK)
         const ctxChart = document.getElementById('jitChart').getContext('2d');
 
         let jitChart = new Chart(ctxChart, {
             type: 'line',
             data: {
-                labels: ['Run #1', 'Run #2', 'Run #3'],
+                labels: [], // Starts Empty
                 datasets: [
                     { 
                         label: 'Model A (Baseline)', 
-                        data: [17.1, 16.9, 17.2], 
+                        data: [], // Starts Empty
                         borderColor: '#10b981', 
                         backgroundColor: 'rgba(16, 185, 129, 0.08)',
                         borderWidth: 2.5, 
@@ -810,7 +810,7 @@
                     },
                     { 
                         label: 'Model B (AI Engine)', 
-                        data: [18.6, 18.4, 18.7], 
+                        data: [], // Starts Empty
                         borderColor: '#0088ff', 
                         backgroundColor: 'rgba(0, 136, 255, 0.08)',
                         borderWidth: 2.5, 
