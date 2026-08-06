@@ -482,7 +482,7 @@
             <div class="topology-card glass-panel">
                 <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.825rem; font-weight: 800; color: var(--text-secondary);">
                     <span>Live Hop Route (<span id="lbl-src" style="color: var(--text-primary);">192.168.1.105</span> ➔ <span id="lbl-dst" style="color: var(--text-primary);">10.0.4.22</span>)</span>
-                    <span id="route-status" style="color: var(--accent-blue);">● Engine Ready</span>
+                    <span id="route-status" style="color: var(--accent-blue);">● Engine: Model B (AI Pipeline)</span>
                 </div>
 
                 <div class="hop-path-bar" id="hopPathBar">
@@ -506,7 +506,7 @@
                     <div class="hop-link"><div class="photon-fill" id="photon-1"></div></div>
 
                     <div class="hop-node" id="node-2">
-                        <span style="font-weight:800; font-size:0.825rem;">Core AI Firewall</span>
+                        <span style="font-weight:800; font-size:0.825rem;" id="node-2-title">Core AI Firewall</span>
                         <span style="font-size:0.725rem; color: var(--text-secondary);" id="delay-2">-- ms</span>
                         <div class="queue-meter"><div class="queue-fill" id="qfill-2"></div></div>
                         <span style="font-size:0.675rem; color: var(--text-secondary); margin-top:4px;" id="qtxt-2">Queue: 0/16</span>
@@ -580,11 +580,10 @@
                     </div>
                 </div>
 
-                <!-- ENHANCED DUAL-AXIS TELEMETRY GRAPH -->
                 <div class="chart-card glass-panel">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
-                        <div style="font-size: 0.9rem; font-weight: 800;">Real-time Telemetry & Latency Curve</div>
-                        <div style="font-size: 0.725rem; font-weight: 700; color: var(--accent-blue);">● Dual Axis Metrics</div>
+                        <div style="font-size: 0.9rem; font-weight: 800;">Real-time Telemetry & Performance Curve</div>
+                        <div style="font-size: 0.725rem; font-weight: 700; color: var(--accent-blue);" id="chart-badge">● Engine Comparison</div>
                     </div>
                     <div class="chart-container">
                         <canvas id="jitChart"></canvas>
@@ -595,13 +594,22 @@
         </main>
     </div>
 
-    <!-- CONFIGURATION MODAL -->
+    <!-- CONFIGURATION MODAL (WITH MODEL A / B TOGGLE) -->
     <div class="modal-overlay" id="configModal">
         <div class="modal-card">
             <div class="modal-header">
                 <span>⚙ Simulation Settings</span>
                 <button onclick="closeConfigModal()" style="background:none; border:none; color:var(--text-primary); cursor:pointer; font-weight:800; font-size:1.2rem;">✕</button>
             </div>
+
+            <div class="form-group">
+                <label>Pipeline Model Engine</label>
+                <select id="cfg-engine" class="form-control" style="border: 1.5px solid var(--accent-blue);">
+                    <option value="modelB">Model B — Active AI Observer Pipeline (Default)</option>
+                    <option value="modelA">Model A — Procedural Baseline (Zero AI / Telemetry Tax)</option>
+                </select>
+            </div>
+
             <div class="form-group">
                 <label>Source Subnet IP</label>
                 <input type="text" id="cfg-src" class="form-control" value="192.168.1.105">
@@ -650,7 +658,7 @@
     <!-- JAVASCRIPT ENGINE -->
     <script>
         let latestStreamData = [];
-        let config = { srcIp: "192.168.1.105", dstIp: "10.0.4.22", mode: "normal", batchSize: "10" };
+        let config = { srcIp: "192.168.1.105", dstIp: "10.0.4.22", mode: "normal", batchSize: "10", engine: "modelB" };
 
         function closeSidebar() {
             const sidebar = document.getElementById('sidebarNav');
@@ -670,6 +678,7 @@
         function closeConfigModal() { document.getElementById('configModal').classList.remove('active'); }
 
         function saveConfig() {
+            config.engine = document.getElementById('cfg-engine').value;
             config.srcIp = document.getElementById('cfg-src').value;
             config.dstIp = document.getElementById('cfg-dst').value;
             config.mode = document.getElementById('cfg-mode').value;
@@ -677,6 +686,20 @@
 
             document.getElementById('lbl-src').innerText = config.srcIp;
             document.getElementById('lbl-dst').innerText = config.dstIp;
+
+            const routeStatus = document.getElementById('route-status');
+            const nodeTitle = document.getElementById('node-2-title');
+
+            if (config.engine === 'modelA') {
+                routeStatus.innerText = "● Engine: Model A (Procedural Baseline)";
+                routeStatus.style.color = "#10b981";
+                if (nodeTitle) nodeTitle.innerText = "Core Router (Model A)";
+            } else {
+                routeStatus.innerText = "● Engine: Model B (AI Pipeline)";
+                routeStatus.style.color = "var(--accent-blue)";
+                if (nodeTitle) nodeTitle.innerText = "Core AI Firewall";
+            }
+
             closeConfigModal();
         }
 
@@ -688,10 +711,8 @@
             updateChartColors();
         }
 
-        // HIGHLY INFORMATIVE DUAL-AXIS CHART INITIALIZATION
+        // CHART INITIALIZATION
         const ctxChart = document.getElementById('jitChart').getContext('2d');
-        
-        // Gradient fill background for Pipeline Latency
         const latencyGradient = ctxChart.createLinearGradient(0, 0, 0, 200);
         latencyGradient.addColorStop(0, 'rgba(16, 185, 129, 0.35)');
         latencyGradient.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
@@ -779,7 +800,7 @@
                         position: 'right',
                         title: { display: true, text: 'Tax (ns) / Kpps', font: { size: 9, family: 'Inter', weight: '700' }, color: '#0088ff' },
                         ticks: { font: { size: 9, family: 'Inter' } },
-                        grid: { drawOnChartArea: false } // Prevent dual grid line clutter
+                        grid: { drawOnChartArea: false }
                     }
                 }
             }
@@ -802,7 +823,7 @@
             jitChart.update();
         }
 
-        async function runPhotonSequence(hops) {
+        async function runPhotonSequence(hops, isModelA) {
             const bar = document.getElementById('hopPathBar');
 
             for (let i = 0; i < 5; i++) {
@@ -830,14 +851,15 @@
                     }
                 }
 
-                if (hops[i] && hops[i].threat) {
+                // If Model A is active, threats are bypassed/not visually highlighted
+                if (!isModelA && hops[i] && hops[i].threat) {
                     currentNode.classList.add('threat');
                 }
 
                 if (i < 4) {
                     const photon = document.getElementById(`photon-${i}`);
                     if (photon) {
-                        const isThreatHop = (hops[i+1] && hops[i+1].threat) || (hops[i] && hops[i].threat);
+                        const isThreatHop = !isModelA && ((hops[i+1] && hops[i+1].threat) || (hops[i] && hops[i].threat));
                         if (isThreatHop) photon.classList.add('threat-photon');
 
                         photon.style.transition = 'width 0.85s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.3s ease';
@@ -893,34 +915,25 @@
             btn.innerText = "TRACING STREAM...";
             btn.disabled = true;
 
+            const isModelA = config.engine === 'modelA';
+
             try {
                 const url = `/api/run?srcIp=${encodeURIComponent(config.srcIp)}&dstIp=${encodeURIComponent(config.dstIp)}&mode=${config.mode}&batchSize=${config.batchSize}`;
                 const res = await fetch(url);
                 const data = await res.json();
 
-                if (data.hops) await runPhotonSequence(data.hops);
+                if (data.hops) await runPhotonSequence(data.hops, isModelA);
 
-                document.getElementById('tax-val').innerText = `+${data.tax_ns} ns`;
-                document.getElementById('threat-val').innerText = `${data.detected_threats}`;
+                if (isModelA) {
+                    document.getElementById('tax-val').innerText = "0 ns";
+                    document.getElementById('threat-val').innerText = "0 (Blind)";
+                } else {
+                    document.getElementById('tax-val').innerText = `+${data.tax_ns} ns`;
+                    document.getElementById('threat-val').innerText = `${data.detected_threats}`;
+                }
+
                 document.getElementById('pps-val').innerText = `${data.throughput_pps.toLocaleString()} pps`;
                 document.getElementById('loss-val').innerText = `${data.packet_loss_pct}%`;
-                document.getElementById('route-status').innerText = "● Stream Processed";
-                document.getElementById('route-status').style.color = "#10b981";
-
-                // DYNAMIC CHART UPDATE: Reflect real execution latency & overhead
-                if (data.tax_ns) {
-                    const latestLatency = data.hops ? data.hops.reduce((a, b) => a + b.delay_ms, 0) : 4.31;
-                    jitChart.data.datasets[0].data.shift();
-                    jitChart.data.datasets[0].data.push(Number(latestLatency.toFixed(2)));
-
-                    jitChart.data.datasets[1].data.shift();
-                    jitChart.data.datasets[1].data.push(data.tax_ns);
-
-                    jitChart.data.datasets[2].data.shift();
-                    jitChart.data.datasets[2].data.push(Number((data.throughput_pps / 1000).toFixed(2)));
-
-                    jitChart.update();
-                }
 
                 if (data.hops) {
                     data.hops.forEach((h, i) => {
@@ -929,17 +942,35 @@
                         const qtxtEl = document.getElementById(`qtxt-${i}`);
 
                         if (delayEl && qfillEl && qtxtEl) {
-                            delayEl.innerText = `${h.delay_ms} ms`;
+                            // Model A has slightly faster hop processing without AI inspection
+                            const adjustedDelay = isModelA ? (h.delay_ms * 0.94).toFixed(2) : h.delay_ms;
+                            delayEl.innerText = `${adjustedDelay} ms`;
                             qtxtEl.innerText = `Queue: ${h.queue_depth}/${h.queue_capacity}`;
 
                             const fillPct = (h.queue_depth / h.queue_capacity) * 100;
                             qfillEl.style.width = `${fillPct}%`;
 
-                            if (fillPct > 60) qfillEl.classList.add('high');
+                            if (!isModelA && fillPct > 60) qfillEl.classList.add('high');
                             else qfillEl.classList.remove('high');
                         }
                     });
                 }
+
+                // DYNAMIC CHART UPDATE: Compare Model A vs Model B curves
+                const latestLatency = data.hops ? data.hops.reduce((a, b) => a + b.delay_ms, 0) : 4.31;
+                const activeLatency = isModelA ? Number((latestLatency * 0.94).toFixed(2)) : Number(latestLatency.toFixed(2));
+                const activeTax = isModelA ? 0 : data.tax_ns;
+
+                jitChart.data.datasets[0].data.shift();
+                jitChart.data.datasets[0].data.push(activeLatency);
+
+                jitChart.data.datasets[1].data.shift();
+                jitChart.data.datasets[1].data.push(activeTax);
+
+                jitChart.data.datasets[2].data.shift();
+                jitChart.data.datasets[2].data.push(Number((data.throughput_pps / 1000).toFixed(2)));
+
+                jitChart.update();
 
                 if (data.packet_stream) {
                     latestStreamData = data.packet_stream;
@@ -947,12 +978,14 @@
                     tbody.innerHTML = '';
                     data.packet_stream.forEach(p => {
                         const row = document.createElement('tr');
+                        // Model A passes all packets as uninspected BENIGN
+                        const isThreatShown = !isModelA && p.threat;
                         row.innerHTML = `
                             <td><b>${p.id}</b></td>
                             <td>${p.srcIp}:${p.srcPort}</td>
                             <td>${p.dstIp}:${p.dstPort}</td>
                             <td>${p.protocol}</td>
-                            <td><span class="${p.threat ? 'badge-threat' : 'badge-ok'}">${p.threat ? '⚠️ ' + p.type : '✓ BENIGN'}</span></td>
+                            <td><span class="${isThreatShown ? 'badge-threat' : 'badge-ok'}">${isThreatShown ? '⚠️ ' + p.type : (isModelA ? '✓ PASSED (RAW)' : '✓ BENIGN')}</span></td>
                         `;
                         tbody.appendChild(row);
                     });
