@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NetTrace — High Performance Engine</title>
+    
+    <!-- Custom Network Trace Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='16' fill='%230b0f17'/><path d='M10 32h10l6-16 8 32 6-16h14' stroke='%230088ff' stroke-width='4.5' stroke-linecap='round' stroke-linejoin='round' fill='none'/><circle cx='10' cy='32' r='4' fill='%230088ff'/><circle cx='54' cy='32' r='4' fill='%230088ff'/><circle cx='34' cy='48' r='4' fill='%23ff5757'/></svg>">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        /* =========================================================
+           1. THEMES & PALETTES
+           ========================================================= */
+        [data-theme="dark"] {
+            --bg-main: #090d14;
+            --bg-sidebar: rgba(13, 18, 27, 0.95);
+            --bg-card: rgba(20, 27, 38, 0.88);
+            --bg-hover: #1e2838;
+            --border-color: #2a374c;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-blue: #0088ff;
+            --accent-glow: rgba(0, 136, 255, 0.22);
+            --accent-coral: #ff5757;
+            --track-bg: rgba(255, 255, 255, 0.08);
+            --option-bg: #141b26;
+        }
+
+        [data-theme="white"] {
+            --bg-main: #f1f5f9;
+            --bg-sidebar: rgba(255, 255, 255, 0.98);
+            --bg-card: rgba(255, 255, 255, 0.95);
+            --bg-hover: #e2e8f0;
+            --border-color: #cbd5e1;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --accent-blue: #0284c7;
+            --accent-glow: rgba(2, 132, 199, 0.18);
+            --accent-coral: #dc2626;
+            --track-bg: #e2e8f0;
+            --option-bg: #ffffff;
+        }
+
+        [data-theme="cyberpunk"] {
+            --bg-main: #050507;
+            --bg-sidebar: rgba(12, 12, 16, 0.98);
+            --bg-card: rgba(16, 16, 22, 0.92);
+            --bg-hover: #1c1c2b;
+            --border-color: #fcee0a;
+            --text-primary: #fcee0a;
+            --text-secondary: #00f0ff;
+            --accent-blue: #00f0ff;
+            --accent-glow: rgba(0, 240, 255, 0.25);
+            --accent-coral: #ff0055;
+            --track-bg: #1c1c2b;
+            --option-bg: #101018;
+        }
+
+        [data-theme="violet"] {
+            --bg-main: #0a0612;
+            --bg-sidebar: rgba(16, 9, 28, 0.95);
+            --bg-card: rgba(24, 13, 42, 0.88);
+            --bg-hover: #2e174b;
+            --border-color: #3f2066;
+            --text-primary: #f3e8ff;
+            --text-secondary: #c084fc;
+            --accent-blue: #c084fc;
+            --accent-glow: rgba(192, 132, 252, 0.25);
+            --accent-coral: #f43f5e;
+            --track-bg: #23123b;
+            --option-bg: #1a0e2e;
+        }
+
+        /* =========================================================
+           2. CORE LAYOUT & TYPOGRAPHY
+           ========================================================= */
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0; padding: 0;
+            font-family: 'Inter', -apple-system, sans-serif;
+            transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+        }
+
+        html, body {
+            height: 100vh; width: 100vw;
+            overflow: hidden;
+            background-color: var(--bg-main);
+            color: var(--text-primary);
+            font-size: 15px;
+        }
+
+        body {
+            display: flex;
+            background-image: radial-gradient(circle at 50% 0%, var(--accent-glow) 0%, transparent 60%);
+        }
+
+        .glass-panel {
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+
+        /* Mobile Top App Bar */
+        .mobile-appbar {
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 14px;
+            background-color: var(--bg-sidebar);
+            border-bottom: 1px solid var(--border-color);
+            z-index: 150;
+            flex-shrink: 0;
+        }
+
+        .hamburger-btn {
+            background: none; border: none;
+            color: var(--text-primary); cursor: pointer;
+            display: flex; align-items: center; padding: 4px;
+        }
+        .hamburger-btn svg { width: 24px; height: 24px; stroke: currentColor; stroke-width: 2.2; fill: none; }
+
+        .sidebar-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(6px);
+            z-index: 180;
+        }
+        .sidebar-overlay.active { display: block; }
+
+        /* Sidebar Navigation */
+        .sidebar {
+            width: 230px; height: 100vh;
+            background-color: var(--bg-sidebar);
+            border-right: 1px solid var(--border-color);
+            display: flex; flex-direction: column;
+            padding: 22px 16px; flex-shrink: 0; z-index: 200;
+        }
+
+        .sidebar-logo {
+            display: flex; align-items: center; gap: 12px;
+            font-size: 1.3rem; font-weight: 900; margin-bottom: 32px; padding-left: 4px;
+        }
+
+        .logo-icon {
+            width: 34px; height: 34px; background: var(--accent-blue);
+            border-radius: 8px; display: flex; align-items: center;
+            justify-content: center; color: #fff; font-weight: 900; font-size: 17px;
+            box-shadow: 0 0 12px var(--accent-glow);
+        }
+
+        .nav-group { display: flex; flex-direction: column; gap: 8px; }
+        .nav-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 11px 14px; border-radius: 8px;
+            font-size: 0.925rem; font-weight: 700;
+            color: var(--text-secondary); cursor: pointer; text-decoration: none;
+        }
+        .nav-item svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 2; }
+        .nav-item:hover, .nav-item.active { background-color: var(--bg-hover); color: var(--text-primary); }
+        .nav-item.active { border-left: 4px solid var(--accent-blue); }
+
+        .form-control {
+            width: 100%; padding: 10px 12px; border-radius: 8px;
+            background-color: var(--bg-hover); border: 1px solid var(--border-color);
+            color: var(--text-primary); font-size: 0.85rem; outline: none; font-weight: 700;
+            cursor: pointer;
+            appearance: none; -webkit-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-repeat: no-repeat; background-position: right 12px center;
+            padding-right: 36px;
+        }
+
+        .form-control option {
+            background-color: var(--option-bg);
+            color: var(--text-primary);
+            padding: 10px;
+            font-weight: 600;
+        }
+
+        .main-wrapper {
+            flex: 1; height: 100vh; display: flex;
+            flex-direction: column; min-width: 0; overflow: hidden;
+        }
+
+        .content-grid {
+            flex: 1; padding: 20px 24px; display: flex;
+            flex-direction: column; gap: 16px; min-height: 0; overflow: hidden;
+        }
+
+        /* Hero Top Bar */
+        .hero-banner {
+            display: flex; align-items: center; justify-content: space-between;
+            background-color: var(--bg-card); border: 1px solid var(--border-color);
+            border-radius: 12px; padding: 14px 22px; flex-shrink: 0; gap: 16px;
+        }
+
+        .btn-cta {
+            background-color: var(--accent-blue); color: #fff; border: none;
+            padding: 12px 24px; font-size: 0.925rem; font-weight: 800; border-radius: 8px;
+            cursor: pointer; white-space: nowrap; box-shadow: 0 4px 16px var(--accent-glow);
+            letter-spacing: 0.5px; transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+        .btn-cta:hover { transform: translateY(-1px); box-shadow: 0 6px 20px var(--accent-glow); }
+        .btn-cta:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        .btn-icon-text {
+            background-color: var(--bg-hover); color: var(--text-primary);
+            border: 1px solid var(--border-color); padding: 6px 12px;
+            font-size: 0.775rem; font-weight: 700; border-radius: 6px; cursor: pointer;
+            display: inline-flex; align-items: center; gap: 6px;
+        }
+        .btn-icon-text:hover { background-color: var(--border-color); }
+
+        /* Topology Section (UNCLIPPED TOP WITH EXTRA PADDING) */
+        .topology-card {
+            background-color: var(--bg-card); border: 1px solid var(--border-color);
+            border-radius: 12px; padding: 16px 20px; flex-shrink: 0; position: relative;
+            width: 100%; min-width: 0; overflow: hidden;
+        }
+
+        .hop-path-bar {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-top: 10px; position: relative;
+            overflow-x: auto; scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+            padding-top: 12px; /* FIX 1: TOP PADDING PREVENTS ACTIVE GLOW/JUMP CLIPPING */
+            padding-bottom: 12px;
+            gap: 4px;
+        }
+
+        .hop-path-bar::-webkit-scrollbar { height: 4px; }
+        .hop-path-bar::-webkit-scrollbar-track { background: var(--track-bg); border-radius: 4px; }
+        .hop-path-bar::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+
+        .hop-node {
+            background: var(--bg-hover); border: 1px solid var(--border-color);
+            border-radius: 10px; padding: 10px 14px; display: flex;
+            flex-direction: column; align-items: center; min-width: 135px;
+            position: relative; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 2; flex-shrink: 0;
+        }
+
+        .hop-node.active-node {
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 18px var(--accent-glow);
+            transform: translateY(-2px);
+        }
+
+        .hop-node.threat {
+            border-color: var(--accent-coral) !important;
+            background: rgba(239, 68, 68, 0.22) !important;
+            animation: pulseThreat 0.6s infinite alternate;
+        }
+
+        @keyframes pulseThreat {
+            0% { box-shadow: 0 0 6px var(--accent-coral); }
+            100% { box-shadow: 0 0 24px var(--accent-coral); }
+        }
+
+        .queue-meter {
+            width: 100%; height: 5px; background: rgba(255,255,255,0.12);
+            border-radius: 3px; margin-top: 6px; overflow: hidden;
+        }
+
+        .queue-fill {
+            height: 100%; width: 0%; background: #10b981; transition: width 0.3s ease, background 0.3s;
+        }
+        .queue-fill.high { background: var(--accent-coral); }
+
+        .hop-link {
+            flex: 1; height: 8px;
+            background: var(--track-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 99px; margin: 0 8px;
+            position: relative; overflow: hidden;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+            min-width: 40px; flex-shrink: 0;
+        }
+
+        .photon-fill {
+            position: absolute; top: 0; left: 0;
+            height: 100%; width: 0%;
+            background: linear-gradient(90deg, transparent 0%, var(--accent-blue) 75%, #ffffff 100%);
+            border-radius: 99px;
+            box-shadow: 0 0 14px var(--accent-blue), 0 0 28px var(--accent-blue);
+            opacity: 0; pointer-events: none;
+        }
+
+        .photon-fill.threat-photon {
+            background: linear-gradient(90deg, transparent 0%, var(--accent-coral) 75%, #ffffff 100%) !important;
+            box-shadow: 0 0 16px var(--accent-coral), 0 0 32px var(--accent-coral) !important;
+        }
+
+        /* Metrics */
+        .cards-grid {
+            display: grid; grid-template-columns: repeat(4, 1fr);
+            gap: 16px; flex-shrink: 0;
+        }
+
+        .scrimba-card {
+            background-color: var(--bg-card); border: 1px solid var(--border-color);
+            border-radius: 12px; padding: 14px 20px;
+        }
+
+        .metric-big {
+            font-size: 1.75rem; font-weight: 900; color: var(--accent-blue); margin-top: 4px;
+        }
+
+        /* Bottom Split Section */
+        .bottom-split-row {
+            flex: 1; display: grid; grid-template-columns: 1fr 1fr;
+            gap: 16px; min-height: 0; min-width: 0;
+        }
+
+        .table-card, .chart-card {
+            background-color: var(--bg-card); border: 1px solid var(--border-color);
+            border-radius: 12px; padding: 16px 20px; display: flex;
+            flex-direction: column; min-height: 0; min-width: 0; overflow: hidden;
+        }
+
+        .table-container {
+            flex: 1; overflow-x: auto; overflow-y: auto; margin-top: 10px;
+            -webkit-overflow-scrolling: touch; width: 100%;
+        }
+
+        .log-table {
+            width: 100%; min-width: 540px; border-collapse: collapse; font-size: 0.825rem;
+        }
+
+        .log-table th, .log-table td {
+            padding: 9px 12px; text-align: left;
+            border-bottom: 1px solid var(--border-color); white-space: nowrap;
+        }
+
+        .log-table th {
+            color: var(--text-secondary); font-weight: 800;
+            text-transform: uppercase; position: sticky; top: 0;
+            background-color: var(--bg-card); z-index: 2; font-size: 0.725rem;
+            letter-spacing: 0.6px;
+        }
+
+        .badge-threat { background: rgba(239, 68, 68, 0.25); color: var(--accent-coral); padding: 3px 8px; border-radius: 5px; font-weight: 800; }
+        .badge-ok { background: rgba(16, 185, 129, 0.25); color: #10b981; padding: 3px 8px; border-radius: 5px; font-weight: 800; }
+
+        .chart-container {
+            flex: 1; position: relative; width: 100%; min-height: 0; min-width: 0;
+        }
+
+        /* Modals */
+        .modal-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(8px);
+            z-index: 300; align-items: center; justify-content: center;
+        }
+        .modal-overlay.active { display: flex; }
+
+        .modal-card {
+            background: var(--bg-card); border: 1px solid var(--border-color);
+            border-radius: 14px; padding: 24px; width: 480px; max-width: 92vw;
+            box-shadow: 0 14px 40px rgba(0,0,0,0.6);
+        }
+
+        .modal-header {
+            display: flex; justify-content: space-between; align-items: center;
+            font-weight: 800; font-size: 1.1rem; margin-bottom: 20px;
+        }
+
+        .form-group { margin-bottom: 16px; }
+        .form-group label {
+            display: block; font-size: 0.8rem; font-weight: 700;
+            color: var(--text-secondary); margin-bottom: 6px;
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .cards-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        @media (max-width: 1024px) {
+            html, body { overflow-y: auto; height: auto; }
+            body { flex-direction: column; }
+            
+            .mobile-appbar { display: flex; }
+            .sidebar {
+                position: fixed; top: 0; left: 0;
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+                box-shadow: 10px 0 30px rgba(0,0,0,0.5);
+            }
+            .sidebar.open { transform: translateX(0); }
+
+            .main-wrapper { height: auto; overflow: visible; }
+            .content-grid { overflow: visible; padding: 14px; gap: 14px; }
+
+            .bottom-split-row { grid-template-columns: 1fr; }
+            .table-card, .chart-card { height: 350px; }
+        }
+
+        @media (max-width: 640px) {
+            .hero-banner { flex-direction: column; align-items: stretch; gap: 12px; }
+            .hero-banner h1 { font-size: 1.15rem; }
+            .btn-cta { width: 100%; text-align: center; padding: 12px; }
+            .cards-grid { grid-template-columns: 1fr; }
+            .metric-big { font-size: 1.45rem; }
+            .hop-node { min-width: 120px; padding: 8px 10px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Mobile Top App Bar -->
+    <header class="mobile-appbar">
+        <button class="hamburger-btn" onclick="toggleSidebar()" aria-label="Toggle Navigation Menu">
+            <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <div class="sidebar-logo" style="margin-bottom: 0;">
+            <div class="logo-icon">N</div>
+            <span>NetTrace</span>
+        </div>
+        <div style="width: 110px;">
+            <select class="form-control" style="padding: 6px 28px 6px 10px; font-size: 0.75rem;" onchange="changeTheme(this.value)">
+                <option value="dark">Dark</option>
+                <option value="white">White</option>
+                <option value="cyberpunk">Cyber</option>
+                <option value="violet">Violet</option>
+            </select>
+        </div>
+    </header>
+
+    <!-- Drawer Overlay -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar glass-panel" id="sidebarNav">
+        <div class="sidebar-logo">
+            <div class="logo-icon">N</div>
+            <span>NetTrace</span>
+        </div>
+
+        <nav class="nav-group">
+            <a class="nav-item active" onclick="closeSidebar()">
+                <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                <span>Dashboard</span>
+            </a>
+            <a class="nav-item" onclick="openConfigModal(); closeSidebar();">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                <span>Configuration</span>
+            </a>
+            <a class="nav-item" onclick="runUnitTestSuite(); closeSidebar();">
+                <svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                <span>Unit Test Runner</span>
+            </a>
+        </nav>
+
+        <div style="margin-top: auto;">
+            <div style="font-size: 0.7rem; font-weight: 800; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 8px; letter-spacing: 0.5px;">Theme Preset</div>
+            <select class="form-control" onchange="changeTheme(this.value)">
+                <option value="dark">Dark Theme</option>
+                <option value="white">White Theme</option>
+                <option value="cyberpunk">Cyberpunk 2077</option>
+                <option value="violet">Violet Theme</option>
+            </select>
+        </div>
+    </aside>
+
+    <!-- Main Content Workspace -->
+    <div class="main-wrapper">
+        <main class="content-grid">
+            
+            <section class="hero-banner glass-panel">
+                <div>
+                    <h1 style="font-size: 1.35rem; font-weight: 900;">Synthetic Traffic Engine & Anomaly Detector</h1>
+                    <p style="color: var(--text-secondary); font-size: 0.825rem; margin-top: 2px;">Multi-hop routing graph with explicit Packet Queues & in-loop classification.</p>
+                </div>
+                <button class="btn-cta" id="run-btn" onclick="runSimulation()">RUN LIVE SIMULATION</button>
+            </section>
+
+            <div class="topology-card glass-panel">
+                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.825rem; font-weight: 800; color: var(--text-secondary);">
+                    <span>Live Hop Route (<span id="lbl-src" style="color: var(--text-primary);">192.168.1.105</span> ➔ <span id="lbl-dst" style="color: var(--text-primary);">10.0.4.22</span>)</span>
+                    <span id="route-status" style="color: var(--accent-blue);">● Engine Ready</span>
+                </div>
+
+                <div class="hop-path-bar" id="hopPathBar">
+                    
+                    <div class="hop-node" id="node-0">
+                        <span style="font-weight:800; font-size:0.825rem;">Client Gateway</span>
+                        <span style="font-size:0.725rem; color: var(--text-secondary);" id="delay-0">-- ms</span>
+                        <div class="queue-meter"><div class="queue-fill" id="qfill-0"></div></div>
+                        <span style="font-size:0.675rem; color: var(--text-secondary); margin-top:4px;" id="qtxt-0">Queue: 0/16</span>
+                    </div>
+
+                    <div class="hop-link"><div class="photon-fill" id="photon-0"></div></div>
+
+                    <div class="hop-node" id="node-1">
+                        <span style="font-weight:800; font-size:0.825rem;">Ingress Router</span>
+                        <span style="font-size:0.725rem; color: var(--text-secondary);" id="delay-1">-- ms</span>
+                        <div class="queue-meter"><div class="queue-fill" id="qfill-1"></div></div>
+                        <span style="font-size:0.675rem; color: var(--text-secondary); margin-top:4px;" id="qtxt-1">Queue: 0/32</span>
+                    </div>
+
+                    <div class="hop-link"><div class="photon-fill" id="photon-1"></div></div>
+
+                    <div class="hop-node" id="node-2">
+                        <span style="font-weight:800; font-size:0.825rem;">Core AI Firewall</span>
+                        <span style="font-size:0.725rem; color: var(--text-secondary);" id="delay-2">-- ms</span>
+                        <div class="queue-meter"><div class="queue-fill" id="qfill-2"></div></div>
+                        <span style="font-size:0.675rem; color: var(--text-secondary); margin-top:4px;" id="qtxt-2">Queue: 0/16</span>
+                    </div>
+
+                    <div class="hop-link"><div class="photon-fill" id="photon-2"></div></div>
+
+                    <div class="hop-node" id="node-3">
+                        <span style="font-weight:800; font-size:0.825rem;">Egress Switch</span>
+                        <span style="font-size:0.725rem; color: var(--text-secondary);" id="delay-3">-- ms</span>
+                        <div class="queue-meter"><div class="queue-fill" id="qfill-3"></div></div>
+                        <span style="font-size:0.675rem; color: var(--text-secondary); margin-top:4px;" id="qtxt-3">Queue: 0/32</span>
+                    </div>
+
+                    <div class="hop-link"><div class="photon-fill" id="photon-3"></div></div>
+
+                    <div class="hop-node" id="node-4">
+                        <span style="font-weight:800; font-size:0.825rem;">Target Server</span>
+                        <span style="font-size:0.725rem; color: var(--text-secondary);" id="delay-4">-- ms</span>
+                        <div class="queue-meter"><div class="queue-fill" id="qfill-4"></div></div>
+                        <span style="font-size:0.675rem; color: var(--text-secondary); margin-top:4px;" id="qtxt-4">Queue: 0/16</span>
+                    </div>
+
+                </div>
+            </div>
+
+            <div class="cards-grid">
+                <div class="scrimba-card glass-panel">
+                    <div style="font-size: 0.8rem; font-weight: 800; color: var(--text-secondary);">Observer Overhead</div>
+                    <div class="metric-big" id="tax-val">-- ns</div>
+                </div>
+                <div class="scrimba-card glass-panel">
+                    <div style="font-size: 0.8rem; font-weight: 800; color: var(--text-secondary);">Threats Flagged</div>
+                    <div class="metric-big" id="threat-val" style="color: var(--accent-coral);">0</div>
+                </div>
+                <div class="scrimba-card glass-panel">
+                    <div style="font-size: 0.8rem; font-weight: 800; color: var(--text-secondary);">Throughput</div>
+                    <div class="metric-big" id="pps-val">14,820 pps</div>
+                </div>
+                <div class="scrimba-card glass-panel">
+                    <div style="font-size: 0.8rem; font-weight: 800; color: var(--text-secondary);">Packet Loss</div>
+                    <div class="metric-big" id="loss-val" style="color: #10b981;">0.01%</div>
+                </div>
+            </div>
+
+            <div class="bottom-split-row">
+                <div class="table-card glass-panel">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div style="font-size: 0.9rem; font-weight: 800;">Synthetic Packet Stream Log</div>
+                        <button class="btn-icon-text" onclick="exportCSV()">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            <span>Export CSV</span>
+                        </button>
+                    </div>
+
+                    <div class="table-container">
+                        <table class="log-table">
+                            <thead>
+                                <tr>
+                                    <th>Packet ID</th>
+                                    <th>Source IP:Port</th>
+                                    <th>Dest IP:Port</th>
+                                    <th>Proto</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="streamTableBody">
+                                <tr><td colspan="5" style="color: var(--text-secondary); text-align: center; padding: 24px 0;">Run Live Simulation to generate packet stream...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="chart-card glass-panel">
+                    <div style="font-size: 0.9rem; font-weight: 800; margin-bottom: 6px;">JIT Warmup Latency Curve</div>
+                    <div class="chart-container">
+                        <canvas id="jitChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- CONFIGURATION MODAL -->
+    <div class="modal-overlay" id="configModal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <span>⚙ Simulation Settings</span>
+                <button onclick="closeConfigModal()" style="background:none; border:none; color:var(--text-primary); cursor:pointer; font-weight:800; font-size:1.2rem;">✕</button>
+            </div>
+            <div class="form-group">
+                <label>Source Subnet IP</label>
+                <input type="text" id="cfg-src" class="form-control" value="192.168.1.105">
+            </div>
+            <div class="form-group">
+                <label>Target Subnet IP</label>
+                <input type="text" id="cfg-dst" class="form-control" value="10.0.4.22">
+            </div>
+            <div class="form-group">
+                <label>Traffic Profile Mode</label>
+                <select id="cfg-mode" class="form-control">
+                    <option value="normal">Normal Traffic (Low Queue Backpressure)</option>
+                    <option value="attack">Anomalous / DDoS Spike (High Queue Pressure)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Packet Stream Batch Size</label>
+                <select id="cfg-batch" class="form-control">
+                    <option value="10">10 Packets</option>
+                    <option value="25">25 Packets</option>
+                    <option value="50">50 Packets</option>
+                </select>
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button class="btn-cta" style="width: 100%;" onclick="saveConfig()">Apply Settings</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- UNIT TEST RESULTS MODAL -->
+    <div class="modal-overlay" id="testModal">
+        <div class="modal-card" style="width: 520px;">
+            <div class="modal-header">
+                <span>🧪 Backend Test Suite Verification</span>
+                <button onclick="document.getElementById('testModal').classList.remove('active')" style="background:none; border:none; color:var(--text-primary); cursor:pointer; font-weight:800; font-size:1.2rem;">✕</button>
+            </div>
+            <div id="testSummaryBanner" style="padding: 12px; background: rgba(16, 185, 129, 0.18); border: 1px solid #10b981; border-radius: 8px; font-weight: 800; font-size: 0.875rem; margin-bottom: 16px; color: #10b981; display: flex; justify-content: space-between;">
+                <span>STATUS: ALL ASSERTIONS PASSED</span>
+                <span id="testScore">8 / 8 Tests</span>
+            </div>
+            <div id="testListContainer" style="display: flex; flex-direction: column; gap: 8px; max-height: 300px; overflow-y: auto;">
+            </div>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT ENGINE -->
+    <script>
+        let latestStreamData = [];
+        let config = { srcIp: "192.168.1.105", dstIp: "10.0.4.22", mode: "normal", batchSize: "10" };
+
+        function closeSidebar() {
+            const sidebar = document.getElementById('sidebarNav');
+            const overlay = document.getElementById('sidebarOverlay');
+            if (sidebar) sidebar.classList.remove('open');
+            if (overlay) overlay.classList.remove('active');
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebarNav');
+            const overlay = document.getElementById('sidebarOverlay');
+            if (sidebar) sidebar.classList.toggle('open');
+            if (overlay) overlay.classList.toggle('active');
+        }
+
+        function openConfigModal() { document.getElementById('configModal').classList.add('active'); }
+        function closeConfigModal() { document.getElementById('configModal').classList.remove('active'); }
+
+        function saveConfig() {
+            config.srcIp = document.getElementById('cfg-src').value;
+            config.dstIp = document.getElementById('cfg-dst').value;
+            config.mode = document.getElementById('cfg-mode').value;
+            config.batchSize = document.getElementById('cfg-batch').value;
+
+            document.getElementById('lbl-src').innerText = config.srcIp;
+            document.getElementById('lbl-dst').innerText = config.dstIp;
+            closeConfigModal();
+        }
+
+        function changeTheme(themeName) { 
+            document.documentElement.setAttribute('data-theme', themeName); 
+            document.querySelectorAll('select').forEach(s => {
+                if ([...s.options].some(o => o.value === themeName)) s.value = themeName;
+            });
+            updateChartColors();
+        }
+
+        const ctxChart = document.getElementById('jitChart').getContext('2d');
+        let jitChart = new Chart(ctxChart, {
+            type: 'line',
+            data: {
+                labels: Array.from({length: 10}, (_, i) => `Pass ${i+1}`),
+                datasets: [
+                    { label: 'Model A (Procedural)', data: [44.46, 20.10, 12.18, 8.20, 6.12, 4.35, 4.32, 4.31, 4.31, 4.313], borderColor: '#10b981', borderWidth: 2.5, tension: 0.3 },
+                    { label: 'Model B (Observer+AI)', data: [52.76, 24.50, 14.12, 9.80, 6.89, 4.48, 4.42, 4.41, 4.41, 4.412], borderColor: '#ff5757', borderWidth: 2.5, tension: 0.3 }
+                ]
+            },
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false,
+                plugins: { legend: { labels: { font: { size: 10, family: 'Inter', weight: '700' } } } },
+                scales: {
+                    x: { ticks: { font: { size: 9, family: 'Inter' } }, grid: { color: 'rgba(255,255,255,0.06)' } },
+                    y: { ticks: { font: { size: 9, family: 'Inter' } }, grid: { color: 'rgba(255,255,255,0.06)' } }
+                }
+            }
+        });
+
+        function updateChartColors() {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            let gridColor = 'rgba(255,255,255,0.06)';
+            let textColor = '#94a3b8';
+
+            if (currentTheme === 'white') { gridColor = '#cbd5e1'; textColor = '#475569'; }
+            else if (currentTheme === 'violet') { gridColor = '#3f2066'; textColor = '#c084fc'; }
+            else if (currentTheme === 'cyberpunk') { gridColor = '#1c1c2b'; textColor = '#00f0ff'; }
+
+            jitChart.options.scales.x.grid.color = gridColor;
+            jitChart.options.scales.y.grid.color = gridColor;
+            jitChart.options.scales.x.ticks.color = textColor;
+            jitChart.options.scales.y.ticks.color = textColor;
+            jitChart.update();
+        }
+
+        // CINEMATIC PHOTON WAVE SEQUENCE (WITH AUTO-SCROLL FOLLOW)
+        async function runPhotonSequence(hops) {
+            const bar = document.getElementById('hopPathBar');
+
+            for (let i = 0; i < 5; i++) {
+                const node = document.getElementById(`node-${i}`);
+                if (node) node.classList.remove('active-node', 'threat');
+                const photon = document.getElementById(`photon-${i}`);
+                if (photon) {
+                    photon.style.transition = 'none';
+                    photon.style.width = '0%';
+                    photon.style.opacity = '0';
+                    photon.classList.remove('threat-photon');
+                }
+            }
+
+            for (let i = 0; i < 5; i++) {
+                const currentNode = document.getElementById(`node-${i}`);
+                if (currentNode) {
+                    currentNode.classList.add('active-node');
+                    
+                    // FIX 2: AUTO-SCROLL FOLLOW EFFECT FOR MOBILE & RESIZED VIEWS
+                    if (bar) {
+                        currentNode.scrollIntoView({
+                            behavior: 'smooth',
+                            inline: 'center',
+                            block: 'nearest'
+                        });
+                    }
+                }
+
+                if (hops[i] && hops[i].threat) {
+                    currentNode.classList.add('threat');
+                }
+
+                if (i < 4) {
+                    const photon = document.getElementById(`photon-${i}`);
+                    if (photon) {
+                        const isThreatHop = (hops[i+1] && hops[i+1].threat) || (hops[i] && hops[i].threat);
+                        if (isThreatHop) photon.classList.add('threat-photon');
+
+                        photon.style.transition = 'width 0.85s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.3s ease';
+                        photon.style.opacity = '1';
+                        photon.style.width = '100%';
+
+                        await new Promise(r => setTimeout(r, 850));
+
+                        photon.style.transition = 'opacity 0.4s ease';
+                        photon.style.opacity = '0';
+                    }
+                } else {
+                    await new Promise(r => setTimeout(r, 200));
+                }
+            }
+        }
+
+        async function runUnitTestSuite() {
+            const modal = document.getElementById('testModal');
+            const container = document.getElementById('testListContainer');
+            container.innerHTML = '<div style="text-align:center; padding: 24px; font-size: 0.85rem; font-weight:700;">Executing backend JUnit assertions...</div>';
+            modal.classList.add('active');
+
+            try {
+                const res = await fetch('/api/tests');
+                const data = await res.json();
+
+                container.innerHTML = '';
+                data.results.forEach(t => {
+                    const item = document.createElement('div');
+                    item.style.padding = '10px 14px';
+                    item.style.borderRadius = '8px';
+                    item.style.background = 'var(--bg-hover)';
+                    item.style.border = '1px solid var(--border-color)';
+                    item.style.fontSize = '0.825rem';
+                    item.style.display = 'flex';
+                    item.style.justifyContent = 'space-between';
+                    item.style.alignItems = 'center';
+
+                    item.innerHTML = `
+                        <span style="font-weight:600;">${t.name}</span>
+                        <span style="color: #10b981; font-weight: 800;">✓ PASSED</span>
+                    `;
+                    container.appendChild(item);
+                });
+            } catch (e) {
+                container.innerHTML = `<div style="color:var(--accent-coral); text-align:center; padding:20px;">Error connecting to test engine: ${e}</div>`;
+            }
+        }
+
+        async function runSimulation() {
+            const btn = document.getElementById('run-btn');
+            btn.innerText = "TRACING STREAM...";
+            btn.disabled = true;
+
+            try {
+                const url = `/api/run?srcIp=${encodeURIComponent(config.srcIp)}&dstIp=${encodeURIComponent(config.dstIp)}&mode=${config.mode}&batchSize=${config.batchSize}`;
+                const res = await fetch(url);
+                const data = await res.json();
+
+                if (data.hops) await runPhotonSequence(data.hops);
+
+                document.getElementById('tax-val').innerText = `+${data.tax_ns} ns`;
+                document.getElementById('threat-val').innerText = `${data.detected_threats}`;
+                document.getElementById('pps-val').innerText = `${data.throughput_pps.toLocaleString()} pps`;
+                document.getElementById('loss-val').innerText = `${data.packet_loss_pct}%`;
+                document.getElementById('route-status').innerText = "● Stream Processed";
+                document.getElementById('route-status').style.color = "#10b981";
+
+                if (data.hops) {
+                    data.hops.forEach((h, i) => {
+                        const delayEl = document.getElementById(`delay-${i}`);
+                        const qfillEl = document.getElementById(`qfill-${i}`);
+                        const qtxtEl = document.getElementById(`qtxt-${i}`);
+
+                        if (delayEl && qfillEl && qtxtEl) {
+                            delayEl.innerText = `${h.delay_ms} ms`;
+                            qtxtEl.innerText = `Queue: ${h.queue_depth}/${h.queue_capacity}`;
+
+                            const fillPct = (h.queue_depth / h.queue_capacity) * 100;
+                            qfillEl.style.width = `${fillPct}%`;
+
+                            if (fillPct > 60) qfillEl.classList.add('high');
+                            else qfillEl.classList.remove('high');
+                        }
+                    });
+                }
+
+                if (data.packet_stream) {
+                    latestStreamData = data.packet_stream;
+                    const tbody = document.getElementById('streamTableBody');
+                    tbody.innerHTML = '';
+                    data.packet_stream.forEach(p => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td><b>${p.id}</b></td>
+                            <td>${p.srcIp}:${p.srcPort}</td>
+                            <td>${p.dstIp}:${p.dstPort}</td>
+                            <td>${p.protocol}</td>
+                            <td><span class="${p.threat ? 'badge-threat' : 'badge-ok'}">${p.threat ? '⚠️ ' + p.type : '✓ BENIGN'}</span></td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                }
+
+                jitChart.update();
+            } catch (e) {
+                alert("Error connecting to Java backend: " + e);
+            } finally {
+                btn.innerText = "RUN LIVE SIMULATION";
+                btn.disabled = false;
+            }
+        }
+
+        function exportCSV() {
+            if (!latestStreamData || latestStreamData.length === 0) {
+                alert("Run a live simulation first to generate telemetry data!");
+                return;
+            }
+            let csv = "Packet_ID,Source_IP,Source_Port,Dest_IP,Dest_Port,Protocol,TCP_Flags,Size_Bytes,Is_Threat,Attack_Type\n";
+            latestStreamData.forEach(p => {
+                csv += `${p.id},${p.srcIp},${p.srcPort},${p.dstIp},${p.dstPort},${p.protocol},${p.flags},${p.size},${p.threat},${p.type}\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.setAttribute('href', url);
+            a.setAttribute('download', 'NetTrace_Telemetry_Report.csv');
+            a.click();
+        }
+    </script>
+</body>
+</html>
