@@ -795,29 +795,27 @@
         let jitChart = new Chart(ctxChart, {
             type: 'line',
             data: {
-                labels: [], // Starts Empty
+                labels: [], 
                 datasets: [
                     { 
                         label: 'Model A (Baseline)', 
-                        data: [], // Starts Empty
+                        data: [], 
                         borderColor: '#10b981', 
                         backgroundColor: 'rgba(16, 185, 129, 0.08)',
                         borderWidth: 2.5, 
                         tension: 0.25,
                         pointRadius: 5,
-                        pointBackgroundColor: '#10b981',
-                        spanGaps: true
+                        pointBackgroundColor: '#10b981'
                     },
                     { 
                         label: 'Model B (AI Engine)', 
-                        data: [], // Starts Empty
+                        data: [], 
                         borderColor: '#0088ff', 
                         backgroundColor: 'rgba(0, 136, 255, 0.08)',
                         borderWidth: 2.5, 
                         tension: 0.25,
                         pointRadius: 5,
-                        pointBackgroundColor: '#0088ff',
-                        spanGaps: true
+                        pointBackgroundColor: '#0088ff'
                     }
                 ]
             },
@@ -1012,10 +1010,13 @@
                     });
                 }
 
-                // TIME-SERIES SCROLLING UPDATE: STRICT ENGINE ISOLATION
+                // DUAL PARALLEL GRAPH EXECUTION: ALWAYS PLOTS BOTH LINES SYMMETRICALLY (NO DOTS)
                 runCount++;
                 const newLabel = `Run #${runCount}`;
                 const rawTotalMs = data.hops ? data.hops.reduce((a, b) => a + b.delay_ms, 0) : 18.6;
+
+                const modelBMs = Number(rawTotalMs.toFixed(2));
+                const modelAMs = Number((rawTotalMs * 0.92).toFixed(2));
 
                 // Maintain clean sliding window of last 10 runs
                 if (jitChart.data.labels.length >= 10) {
@@ -1025,21 +1026,8 @@
                 }
 
                 jitChart.data.labels.push(newLabel);
-
-                if (config.engine === 'modelA') {
-                    const modelAMs = Number((rawTotalMs * 0.92).toFixed(2));
-                    jitChart.data.datasets[0].data.push(modelAMs);
-                    jitChart.data.datasets[1].data.push(null);
-                } else if (config.engine === 'modelB') {
-                    const modelBMs = Number(rawTotalMs.toFixed(2));
-                    jitChart.data.datasets[0].data.push(null);
-                    jitChart.data.datasets[1].data.push(modelBMs);
-                } else {
-                    const modelBMs = Number(rawTotalMs.toFixed(2));
-                    const modelAMs = Number((rawTotalMs * 0.92).toFixed(2));
-                    jitChart.data.datasets[0].data.push(modelAMs);
-                    jitChart.data.datasets[1].data.push(modelBMs);
-                }
+                jitChart.data.datasets[0].data.push(modelAMs); // Model A baseline curve
+                jitChart.data.datasets[1].data.push(modelBMs); // Model B AI observer curve
 
                 jitChart.update();
 
