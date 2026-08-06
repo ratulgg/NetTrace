@@ -241,6 +241,8 @@
             font-weight: 800;
             border-radius: 6px;
             cursor: pointer;
+            display: inline-flex;
+            align-items: center;
             transition: all 0.2s ease;
         }
 
@@ -535,11 +537,14 @@
                 <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.825rem; font-weight: 800; color: var(--text-secondary);">
                     <span>Live Hop Route (<span id="lbl-src" style="color: var(--text-primary);">192.168.1.105</span> ➔ <span id="lbl-dst" style="color: var(--text-primary);">10.0.4.22</span>)</span>
                     
-                    <!-- 3-WAY MODEL TOGGLE CONTROL -->
+                    <!-- 3-WAY MODEL TOGGLE CONTROL WITH CLEAN INLINE SVG ICON FOR DUAL COMPARISON -->
                     <div class="model-toggle-group">
                         <button class="model-pill-btn" id="btn-model-a" onclick="switchModel('modelA')">Model A</button>
                         <button class="model-pill-btn" id="btn-model-b" onclick="switchModel('modelB')">Model B</button>
-                        <button class="model-pill-btn active-model-dual" id="btn-model-dual" onclick="switchModel('dual')">⚡ Dual Comparison</button>
+                        <button class="model-pill-btn active-model-dual" id="btn-model-dual" onclick="switchModel('dual')">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -1px; margin-right: 4px;"><path d="M7 16V4M7 4L3 8M7 4L11 8M17 8V20M17 20L21 16M17 20L13 16"/></svg>
+                            Dual Comparison
+                        </button>
                     </div>
                 </div>
 
@@ -784,7 +789,7 @@
             updateChartColors();
         }
 
-        // TIME-SERIES APM GRAPH INITIALIZATION WITH SPANGAPS & INITIAL SYMMETRY
+        // TIME-SERIES APM GRAPH INITIALIZATION
         const ctxChart = document.getElementById('jitChart').getContext('2d');
 
         let jitChart = new Chart(ctxChart, {
@@ -1024,13 +1029,12 @@
                 if (config.engine === 'modelA') {
                     const modelAMs = Number((rawTotalMs * 0.92).toFixed(2));
                     jitChart.data.datasets[0].data.push(modelAMs);
-                    jitChart.data.datasets[1].data.push(null); // Model B is NOT plotted during Model A run
+                    jitChart.data.datasets[1].data.push(null);
                 } else if (config.engine === 'modelB') {
                     const modelBMs = Number(rawTotalMs.toFixed(2));
-                    jitChart.data.datasets[0].data.push(null); // Model A is NOT plotted during Model B run
+                    jitChart.data.datasets[0].data.push(null);
                     jitChart.data.datasets[1].data.push(modelBMs);
                 } else {
-                    // 'dual' mode: Both lines are plotted in parallel
                     const modelBMs = Number(rawTotalMs.toFixed(2));
                     const modelAMs = Number((rawTotalMs * 0.92).toFixed(2));
                     jitChart.data.datasets[0].data.push(modelAMs);
