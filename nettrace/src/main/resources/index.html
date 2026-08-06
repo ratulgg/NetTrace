@@ -784,7 +784,7 @@
             updateChartColors();
         }
 
-        // TIME-SERIES APM GRAPH INITIALIZATION WITH ALIGNED INITIAL DATA (NO NULLS)
+        // TIME-SERIES APM GRAPH INITIALIZATION WITH SPANGAPS & INITIAL SYMMETRY
         const ctxChart = document.getElementById('jitChart').getContext('2d');
 
         let jitChart = new Chart(ctxChart, {
@@ -794,23 +794,25 @@
                 datasets: [
                     { 
                         label: 'Model A (Baseline)', 
-                        data: [17.1, 16.9, 17.2], // Clean initial baseline values
+                        data: [17.1, 16.9, 17.2], 
                         borderColor: '#10b981', 
                         backgroundColor: 'rgba(16, 185, 129, 0.08)',
                         borderWidth: 2.5, 
                         tension: 0.25,
                         pointRadius: 5,
-                        pointBackgroundColor: '#10b981'
+                        pointBackgroundColor: '#10b981',
+                        spanGaps: true
                     },
                     { 
                         label: 'Model B (AI Engine)', 
-                        data: [18.6, 18.4, 18.7], // Clean initial AI engine values
+                        data: [18.6, 18.4, 18.7], 
                         borderColor: '#0088ff', 
                         backgroundColor: 'rgba(0, 136, 255, 0.08)',
                         borderWidth: 2.5, 
                         tension: 0.25,
                         pointRadius: 5,
-                        pointBackgroundColor: '#0088ff'
+                        pointBackgroundColor: '#0088ff',
+                        spanGaps: true
                     }
                 ]
             },
@@ -832,6 +834,7 @@
                         borderWidth: 1,
                         callbacks: {
                             label: function(context) {
+                                if (context.parsed.y === null) return null;
                                 return ` ${context.dataset.label}: ${context.parsed.y} ms`;
                             }
                         }
@@ -1004,13 +1007,10 @@
                     });
                 }
 
-                // DUAL PARALLEL GRAPH EXECUTION: ALWAYS PLOTS BOTH LINES SYMMETRICALLY
+                // TIME-SERIES SCROLLING UPDATE: STRICT ENGINE ISOLATION
                 runCount++;
                 const newLabel = `Run #${runCount}`;
                 const rawTotalMs = data.hops ? data.hops.reduce((a, b) => a + b.delay_ms, 0) : 18.6;
-
-                const modelBMs = Number(rawTotalMs.toFixed(2));
-                const modelAMs = Number((rawTotalMs * 0.92).toFixed(2));
 
                 // Maintain clean sliding window of last 10 runs
                 if (jitChart.data.labels.length >= 10) {
@@ -1020,8 +1020,22 @@
                 }
 
                 jitChart.data.labels.push(newLabel);
-                jitChart.data.datasets[0].data.push(modelAMs); // Model A baseline curve
-                jitChart.data.datasets[1].data.push(modelBMs); // Model B AI observer curve
+
+                if (config.engine === 'modelA') {
+                    const modelAMs = Number((rawTotalMs * 0.92).toFixed(2));
+                    jitChart.data.datasets[0].data.push(modelAMs);
+                    jitChart.data.datasets[1].data.push(null); // Model B is NOT plotted during Model A run
+                } else if (config.engine === 'modelB') {
+                    const modelBMs = Number(rawTotalMs.toFixed(2));
+                    jitChart.data.datasets[0].data.push(null); // Model A is NOT plotted during Model B run
+                    jitChart.data.datasets[1].data.push(modelBMs);
+                } else {
+                    // 'dual' mode: Both lines are plotted in parallel
+                    const modelBMs = Number(rawTotalMs.toFixed(2));
+                    const modelAMs = Number((rawTotalMs * 0.92).toFixed(2));
+                    jitChart.data.datasets[0].data.push(modelAMs);
+                    jitChart.data.datasets[1].data.push(modelBMs);
+                }
 
                 jitChart.update();
 
