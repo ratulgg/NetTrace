@@ -632,11 +632,11 @@
                     </div>
                 </div>
 
-                <!-- JIT WARMUP & LATENCY BENCHMARK GRAPH -->
+                <!-- OPTION A: SCROLLING TIME-SERIES TELEMETRY GRAPH -->
                 <div class="chart-card glass-panel">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
-                        <div style="font-size: 0.9rem; font-weight: 800;">JIT Warmup Decay & Latency Benchmark</div>
-                        <div style="font-size: 0.725rem; font-weight: 800; color: var(--accent-blue);" id="chart-badge">● End-to-End Latency (ms)</div>
+                        <div style="font-size: 0.9rem; font-weight: 800;">Real-time Telemetry History</div>
+                        <div style="font-size: 0.725rem; font-weight: 800; color: var(--accent-blue);" id="chart-badge">● End-to-End Latency Timeline (ms)</div>
                     </div>
                     <div class="chart-container">
                         <canvas id="jitChart"></canvas>
@@ -704,6 +704,7 @@
     <script>
         let latestStreamData = [];
         let config = { srcIp: "192.168.1.105", dstIp: "10.0.4.22", mode: "normal", batchSize: "10", engine: "modelB" };
+        let runCount = 3; // Tracks simulation runs on the timeline
 
         function closeSidebar() {
             const sidebar = document.getElementById('sidebarNav');
@@ -720,7 +721,7 @@
         }
 
         function openConfigModal() { document.getElementById('configModal').classList.add('active'); }
-        function closeConfigModal() { document.getElementById('configModal').classList.remove('active'); }
+        function closeConfigModal() { document.getElementById('closeConfigModal'); document.getElementById('configModal').classList.remove('active'); }
 
         function saveConfig() {
             config.srcIp = document.getElementById('cfg-src').value;
@@ -773,32 +774,32 @@
             updateChartColors();
         }
 
-        // TEXTBOOK JIT WARMUP GRAPH INITIALIZATION (Cold Start -> Compiled Steady State)
+        // OPTION A: TIME-SERIES APM GRAPH INITIALIZATION
         const ctxChart = document.getElementById('jitChart').getContext('2d');
 
         let jitChart = new Chart(ctxChart, {
             type: 'line',
             data: {
-                labels: Array.from({length: 8}, (_, i) => `Pass ${i+1}`),
+                labels: ['Run #1', 'Run #2', 'Run #3'],
                 datasets: [
                     { 
-                        label: 'Model A (Baseline Routing)', 
-                        data: [41.2, 29.2, 21.4, 18.5, 17.1, 17.1, 17.1, 17.1], 
+                        label: 'Model A (Baseline)', 
+                        data: [17.1, 16.9, 17.2], 
                         borderColor: '#10b981', 
                         backgroundColor: 'rgba(16, 185, 129, 0.08)',
                         borderWidth: 2.5, 
-                        tension: 0.35,
-                        pointRadius: 4,
+                        tension: 0.25,
+                        pointRadius: 5,
                         pointBackgroundColor: '#10b981'
                     },
                     { 
-                        label: 'Model B (AI Observer Pipeline)', 
-                        data: [44.6, 31.6, 23.2, 20.1, 18.6, 18.6, 18.6, 18.6], 
+                        label: 'Model B (AI Engine)', 
+                        data: [18.6, 18.4, 18.7], 
                         borderColor: '#0088ff', 
                         backgroundColor: 'rgba(0, 136, 255, 0.08)',
                         borderWidth: 2.5, 
-                        tension: 0.35,
-                        pointRadius: 4,
+                        tension: 0.25,
+                        pointRadius: 5,
                         pointBackgroundColor: '#0088ff'
                     }
                 ]
@@ -828,14 +829,14 @@
                 },
                 scales: {
                     x: { 
-                        title: { display: true, text: 'Execution Iterations (JIT Warmup Passes)', font: { size: 9, family: 'Inter', weight: '700' }, color: '#94a3b8' },
+                        title: { display: true, text: 'Execution History (Live Simulation Runs)', font: { size: 9, family: 'Inter', weight: '700' }, color: '#94a3b8' },
                         ticks: { font: { size: 10, family: 'Inter' } }, 
                         grid: { color: 'rgba(255,255,255,0.06)' } 
                     },
                     y: { 
                         type: 'linear',
                         display: true,
-                        title: { display: true, text: 'Execution Time (ms)', font: { size: 10, family: 'Inter', weight: '700' }, color: '#94a3b8' },
+                        title: { display: true, text: 'Total Latency (ms)', font: { size: 10, family: 'Inter', weight: '700' }, color: '#94a3b8' },
                         ticks: { font: { size: 10, family: 'Inter' } }, 
                         grid: { color: 'rgba(255,255,255,0.06)' } 
                     }
@@ -990,16 +991,23 @@
                     });
                 }
 
-                // DYNAMIC JIT WARMUP DECAY GENERATOR (Anchored to live execution sum)
+                // OPTION A TIME-SERIES SCROLLING UPDATE: Appends live latency result
+                runCount++;
+                const newLabel = `Run #${runCount}`;
                 const rawTotalMs = data.hops ? data.hops.reduce((a, b) => a + b.delay_ms, 0) : 18.6;
                 const modelBMs = Number(rawTotalMs.toFixed(2));
                 const modelAMs = Number((rawTotalMs * 0.92).toFixed(2));
 
-                // JIT Warmup Decay Multipliers: High interpreter cold-start -> compiled steady state
-                const warmupMultipliers = [2.4, 1.7, 1.25, 1.08, 1.0, 1.0, 1.0, 1.0];
+                // Maintain clean sliding window of last 10 runs
+                if (jitChart.data.labels.length >= 10) {
+                    jitChart.data.labels.shift();
+                    jitChart.data.datasets[0].data.shift();
+                    jitChart.data.datasets[1].data.shift();
+                }
 
-                jitChart.data.datasets[0].data = warmupMultipliers.map(m => Number((modelAMs * m).toFixed(2)));
-                jitChart.data.datasets[1].data = warmupMultipliers.map(m => Number((modelBMs * m).toFixed(2)));
+                jitChart.data.labels.push(newLabel);
+                jitChart.data.datasets[0].data.push(modelAMs);
+                jitChart.data.datasets[1].data.push(modelBMs);
 
                 jitChart.update();
 
