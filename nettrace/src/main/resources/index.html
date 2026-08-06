@@ -215,7 +215,7 @@
         }
         .btn-icon-text:hover { background-color: var(--border-color); }
 
-        /* Topology Section (UNCLIPPED TOP WITH EXTRA PADDING) */
+        /* Topology Section */
         .topology-card {
             background-color: var(--bg-card); border: 1px solid var(--border-color);
             border-radius: 12px; padding: 16px 20px; flex-shrink: 0; position: relative;
@@ -227,7 +227,7 @@
             margin-top: 10px; position: relative;
             overflow-x: auto; scroll-behavior: smooth;
             -webkit-overflow-scrolling: touch;
-            padding-top: 12px; /* FIX 1: TOP PADDING PREVENTS ACTIVE GLOW/JUMP CLIPPING */
+            padding-top: 12px;
             padding-bottom: 12px;
             gap: 4px;
         }
@@ -580,8 +580,12 @@
                     </div>
                 </div>
 
+                <!-- ENHANCED DUAL-AXIS TELEMETRY GRAPH -->
                 <div class="chart-card glass-panel">
-                    <div style="font-size: 0.9rem; font-weight: 800; margin-bottom: 6px;">JIT Warmup Latency Curve</div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
+                        <div style="font-size: 0.9rem; font-weight: 800;">Real-time Telemetry & Latency Curve</div>
+                        <div style="font-size: 0.725rem; font-weight: 700; color: var(--accent-blue);">● Dual Axis Metrics</div>
+                    </div>
                     <div class="chart-container">
                         <canvas id="jitChart"></canvas>
                     </div>
@@ -684,23 +688,99 @@
             updateChartColors();
         }
 
+        // HIGHLY INFORMATIVE DUAL-AXIS CHART INITIALIZATION
         const ctxChart = document.getElementById('jitChart').getContext('2d');
+        
+        // Gradient fill background for Pipeline Latency
+        const latencyGradient = ctxChart.createLinearGradient(0, 0, 0, 200);
+        latencyGradient.addColorStop(0, 'rgba(16, 185, 129, 0.35)');
+        latencyGradient.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
+
         let jitChart = new Chart(ctxChart, {
             type: 'line',
             data: {
                 labels: Array.from({length: 10}, (_, i) => `Pass ${i+1}`),
                 datasets: [
-                    { label: 'Model A (Procedural)', data: [44.46, 20.10, 12.18, 8.20, 6.12, 4.35, 4.32, 4.31, 4.31, 4.313], borderColor: '#10b981', borderWidth: 2.5, tension: 0.3 },
-                    { label: 'Model B (Observer+AI)', data: [52.76, 24.50, 14.12, 9.80, 6.89, 4.48, 4.42, 4.41, 4.41, 4.412], borderColor: '#ff5757', borderWidth: 2.5, tension: 0.3 }
+                    { 
+                        label: 'Pipeline Latency (ms)', 
+                        data: [44.46, 20.10, 12.18, 8.20, 6.12, 4.35, 4.32, 4.31, 4.31, 4.313], 
+                        borderColor: '#10b981', 
+                        backgroundColor: latencyGradient,
+                        fill: true,
+                        borderWidth: 2.5, 
+                        tension: 0.35,
+                        yAxisID: 'y'
+                    },
+                    { 
+                        label: 'Observer Overhead (ns)', 
+                        data: [68.2, 45.1, 32.8, 28.4, 25.1, 23.9, 23.6, 23.5, 23.5, 23.4], 
+                        borderColor: '#ff5757', 
+                        borderWidth: 2, 
+                        borderDash: [4, 4],
+                        tension: 0.35,
+                        yAxisID: 'y1'
+                    },
+                    { 
+                        label: 'Throughput (Kpps)', 
+                        data: [4.2, 7.8, 10.5, 12.8, 14.1, 14.7, 14.8, 14.8, 14.82, 14.82], 
+                        borderColor: '#0088ff', 
+                        borderWidth: 2, 
+                        tension: 0.35,
+                        yAxisID: 'y1'
+                    }
                 ]
             },
             options: { 
                 responsive: true, 
                 maintainAspectRatio: false,
-                plugins: { legend: { labels: { font: { size: 10, family: 'Inter', weight: '700' } } } },
+                interaction: { mode: 'index', intersect: false },
+                plugins: { 
+                    legend: { 
+                        position: 'top',
+                        labels: { font: { size: 10, family: 'Inter', weight: '700' }, boxWidth: 12, padding: 10 } 
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(15, 20, 29, 0.95)',
+                        titleFont: { size: 11, family: 'Inter', weight: '800' },
+                        bodyFont: { size: 11, family: 'Inter' },
+                        padding: 10,
+                        borderColor: '#2a374c',
+                        borderWidth: 1,
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) label += ': ';
+                                if (context.parsed.y !== null) {
+                                    if (context.datasetIndex === 0) label += context.parsed.y + ' ms';
+                                    else if (context.datasetIndex === 1) label += context.parsed.y + ' ns';
+                                    else label += context.parsed.y + ' Kpps';
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                },
                 scales: {
-                    x: { ticks: { font: { size: 9, family: 'Inter' } }, grid: { color: 'rgba(255,255,255,0.06)' } },
-                    y: { ticks: { font: { size: 9, family: 'Inter' } }, grid: { color: 'rgba(255,255,255,0.06)' } }
+                    x: { 
+                        ticks: { font: { size: 9, family: 'Inter' } }, 
+                        grid: { color: 'rgba(255,255,255,0.06)' } 
+                    },
+                    y: { 
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        title: { display: true, text: 'Latency (ms)', font: { size: 9, family: 'Inter', weight: '700' }, color: '#10b981' },
+                        ticks: { font: { size: 9, family: 'Inter' } }, 
+                        grid: { color: 'rgba(255,255,255,0.06)' } 
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        title: { display: true, text: 'Tax (ns) / Kpps', font: { size: 9, family: 'Inter', weight: '700' }, color: '#0088ff' },
+                        ticks: { font: { size: 9, family: 'Inter' } },
+                        grid: { drawOnChartArea: false } // Prevent dual grid line clutter
+                    }
                 }
             }
         });
@@ -718,10 +798,10 @@
             jitChart.options.scales.y.grid.color = gridColor;
             jitChart.options.scales.x.ticks.color = textColor;
             jitChart.options.scales.y.ticks.color = textColor;
+            jitChart.options.scales.y1.ticks.color = textColor;
             jitChart.update();
         }
 
-        // CINEMATIC PHOTON WAVE SEQUENCE (WITH AUTO-SCROLL FOLLOW)
         async function runPhotonSequence(hops) {
             const bar = document.getElementById('hopPathBar');
 
@@ -741,8 +821,6 @@
                 const currentNode = document.getElementById(`node-${i}`);
                 if (currentNode) {
                     currentNode.classList.add('active-node');
-                    
-                    // FIX 2: AUTO-SCROLL FOLLOW EFFECT FOR MOBILE & RESIZED VIEWS
                     if (bar) {
                         currentNode.scrollIntoView({
                             behavior: 'smooth',
@@ -829,6 +907,21 @@
                 document.getElementById('route-status').innerText = "● Stream Processed";
                 document.getElementById('route-status').style.color = "#10b981";
 
+                // DYNAMIC CHART UPDATE: Reflect real execution latency & overhead
+                if (data.tax_ns) {
+                    const latestLatency = data.hops ? data.hops.reduce((a, b) => a + b.delay_ms, 0) : 4.31;
+                    jitChart.data.datasets[0].data.shift();
+                    jitChart.data.datasets[0].data.push(Number(latestLatency.toFixed(2)));
+
+                    jitChart.data.datasets[1].data.shift();
+                    jitChart.data.datasets[1].data.push(data.tax_ns);
+
+                    jitChart.data.datasets[2].data.shift();
+                    jitChart.data.datasets[2].data.push(Number((data.throughput_pps / 1000).toFixed(2)));
+
+                    jitChart.update();
+                }
+
                 if (data.hops) {
                     data.hops.forEach((h, i) => {
                         const delayEl = document.getElementById(`delay-${i}`);
@@ -865,7 +958,6 @@
                     });
                 }
 
-                jitChart.update();
             } catch (e) {
                 alert("Error connecting to Java backend: " + e);
             } finally {
