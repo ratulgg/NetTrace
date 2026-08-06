@@ -746,7 +746,7 @@
             closeConfigModal();
         }
 
-        /* 3-WAY MODEL TOGGLE CONTROL */
+        /* 3-WAY MODEL TOGGLE CONTROL WITH DATASET VISIBILITY CONTROL */
         function switchModel(selectedEngine) {
             config.engine = selectedEngine;
             const btnA = document.getElementById('btn-model-a');
@@ -766,19 +766,32 @@
                 document.getElementById('tax-val').innerText = "0 ns";
                 document.getElementById('threat-val').innerText = "0 (Blind)";
                 document.getElementById('threat-val').style.color = "var(--text-secondary)";
+
+                // Show Model A (Green), Hide Model B (Blue)
+                jitChart.setDatasetVisibility(0, true);
+                jitChart.setDatasetVisibility(1, false);
             } else if (selectedEngine === 'modelB') {
                 btnB.className = 'model-pill-btn active-model-b';
                 if (node2) node2.classList.remove('bypassed');
                 if (node2Title) node2Title.innerText = "Core AI Firewall";
                 document.getElementById('tax-val').innerText = "+23.5 ns";
                 document.getElementById('threat-val').style.color = "var(--accent-coral)";
+
+                // Hide Model A (Green), Show Model B (Blue)
+                jitChart.setDatasetVisibility(0, false);
+                jitChart.setDatasetVisibility(1, true);
             } else {
                 btnDual.className = 'model-pill-btn active-model-dual';
                 if (node2) node2.classList.remove('bypassed');
                 if (node2Title) node2Title.innerText = "Core AI Firewall";
                 document.getElementById('tax-val').innerText = "+23.5 ns (AI)";
                 document.getElementById('threat-val').style.color = "var(--accent-coral)";
+
+                // Show Both Datasets
+                jitChart.setDatasetVisibility(0, true);
+                jitChart.setDatasetVisibility(1, true);
             }
+            jitChart.update();
         }
 
         function changeTheme(themeName) { 
@@ -1010,7 +1023,7 @@
                     });
                 }
 
-                // DUAL PARALLEL GRAPH EXECUTION: ALWAYS PLOTS BOTH LINES SYMMETRICALLY (NO DOTS)
+                // RECORD DATA FOR BOTH MODELS CONTINUOUSLY (NO BROKEN/DOTTED LINES)
                 runCount++;
                 const newLabel = `Run #${runCount}`;
                 const rawTotalMs = data.hops ? data.hops.reduce((a, b) => a + b.delay_ms, 0) : 18.6;
@@ -1026,10 +1039,11 @@
                 }
 
                 jitChart.data.labels.push(newLabel);
-                jitChart.data.datasets[0].data.push(modelAMs); // Model A baseline curve
-                jitChart.data.datasets[1].data.push(modelBMs); // Model B AI observer curve
+                jitChart.data.datasets[0].data.push(modelAMs); // Model A baseline data point
+                jitChart.data.datasets[1].data.push(modelBMs); // Model B AI engine data point
 
-                jitChart.update();
+                // Refresh visibility based on active pill button
+                switchModel(config.engine);
 
                 if (data.packet_stream) {
                     latestStreamData = data.packet_stream;
