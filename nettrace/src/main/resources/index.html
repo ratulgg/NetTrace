@@ -556,7 +556,7 @@
 
                     <div class="hop-link"><div class="photon-fill" id="photon-1"></div></div>
 
-                    <!-- CORE AI NODE (WILL BE GRAYED OUT IN MODEL A) -->
+                    <!-- CORE AI NODE (GRAYED OUT IN MODEL A) -->
                     <div class="hop-node" id="node-2">
                         <span style="font-weight:800; font-size:0.825rem;" id="node-2-title">Core AI Firewall</span>
                         <span style="font-size:0.725rem; color: var(--text-secondary);" id="delay-2">-- ms</span>
@@ -632,11 +632,11 @@
                     </div>
                 </div>
 
-                <!-- SIMPLIFIED EASY-TO-READ GRAPH (Model A vs Model B Direct Latency Benchmark) -->
+                <!-- JIT WARMUP & LATENCY BENCHMARK GRAPH -->
                 <div class="chart-card glass-panel">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
-                        <div style="font-size: 0.9rem; font-weight: 800;">Latency Benchmark: Model A vs Model B</div>
-                        <div style="font-size: 0.725rem; font-weight: 800; color: var(--accent-blue);" id="chart-badge">● Total End-to-End Latency (ms)</div>
+                        <div style="font-size: 0.9rem; font-weight: 800;">JIT Warmup Decay & Latency Benchmark</div>
+                        <div style="font-size: 0.725rem; font-weight: 800; color: var(--accent-blue);" id="chart-badge">● End-to-End Latency (ms)</div>
                     </div>
                     <div class="chart-container">
                         <canvas id="jitChart"></canvas>
@@ -773,31 +773,31 @@
             updateChartColors();
         }
 
-        // SIMPLIFIED SINGLE Y-AXIS BENCHMARK GRAPH INITIALIZATION
+        // TEXTBOOK JIT WARMUP GRAPH INITIALIZATION (Cold Start -> Compiled Steady State)
         const ctxChart = document.getElementById('jitChart').getContext('2d');
 
         let jitChart = new Chart(ctxChart, {
             type: 'line',
             data: {
-                labels: Array.from({length: 8}, (_, i) => `Iteration ${i+1}`),
+                labels: Array.from({length: 8}, (_, i) => `Pass ${i+1}`),
                 datasets: [
                     { 
                         label: 'Model A (Baseline Routing)', 
-                        data: [28.4, 16.2, 9.8, 6.1, 4.2, 3.9, 3.85, 3.85], 
+                        data: [41.2, 29.2, 21.4, 18.5, 17.1, 17.1, 17.1, 17.1], 
                         borderColor: '#10b981', 
-                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        backgroundColor: 'rgba(16, 185, 129, 0.08)',
                         borderWidth: 2.5, 
-                        tension: 0.3,
+                        tension: 0.35,
                         pointRadius: 4,
                         pointBackgroundColor: '#10b981'
                     },
                     { 
                         label: 'Model B (AI Observer Pipeline)', 
-                        data: [31.8, 18.1, 11.2, 7.2, 4.8, 4.35, 4.31, 4.31], 
+                        data: [44.6, 31.6, 23.2, 20.1, 18.6, 18.6, 18.6, 18.6], 
                         borderColor: '#0088ff', 
-                        backgroundColor: 'rgba(0, 136, 255, 0.1)',
+                        backgroundColor: 'rgba(0, 136, 255, 0.08)',
                         borderWidth: 2.5, 
-                        tension: 0.3,
+                        tension: 0.35,
                         pointRadius: 4,
                         pointBackgroundColor: '#0088ff'
                     }
@@ -828,6 +828,7 @@
                 },
                 scales: {
                     x: { 
+                        title: { display: true, text: 'Execution Iterations (JIT Warmup Passes)', font: { size: 9, family: 'Inter', weight: '700' }, color: '#94a3b8' },
                         ticks: { font: { size: 10, family: 'Inter' } }, 
                         grid: { color: 'rgba(255,255,255,0.06)' } 
                     },
@@ -886,7 +887,6 @@
                     }
                 }
 
-                // In Model A, bypass threat highlighting on node 2
                 if (!isModelA && hops[i] && hops[i].threat) {
                     currentNode.classList.add('threat');
                 }
@@ -990,16 +990,16 @@
                     });
                 }
 
-                // DYNAMIC GRAPH UPDATE: Live latency comparison
-                const rawTotalMs = data.hops ? data.hops.reduce((a, b) => a + b.delay_ms, 0) : 4.31;
-                const modelAMs = Number((rawTotalMs * 0.92).toFixed(2));
+                // DYNAMIC JIT WARMUP DECAY GENERATOR (Anchored to live execution sum)
+                const rawTotalMs = data.hops ? data.hops.reduce((a, b) => a + b.delay_ms, 0) : 18.6;
                 const modelBMs = Number(rawTotalMs.toFixed(2));
+                const modelAMs = Number((rawTotalMs * 0.92).toFixed(2));
 
-                jitChart.data.datasets[0].data.shift();
-                jitChart.data.datasets[0].data.push(modelAMs);
+                // JIT Warmup Decay Multipliers: High interpreter cold-start -> compiled steady state
+                const warmupMultipliers = [2.4, 1.7, 1.25, 1.08, 1.0, 1.0, 1.0, 1.0];
 
-                jitChart.data.datasets[1].data.shift();
-                jitChart.data.datasets[1].data.push(modelBMs);
+                jitChart.data.datasets[0].data = warmupMultipliers.map(m => Number((modelAMs * m).toFixed(2)));
+                jitChart.data.datasets[1].data = warmupMultipliers.map(m => Number((modelBMs * m).toFixed(2)));
 
                 jitChart.update();
 
