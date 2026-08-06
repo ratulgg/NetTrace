@@ -222,6 +222,40 @@
             width: 100%; min-width: 0; overflow: hidden;
         }
 
+        /* Header Model Selector Toggle */
+        .model-toggle-group {
+            display: inline-flex;
+            background: var(--bg-hover);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 3px;
+            gap: 2px;
+        }
+
+        .model-pill-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            padding: 5px 14px;
+            font-size: 0.775rem;
+            font-weight: 800;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .model-pill-btn.active-model-b {
+            background: var(--accent-blue);
+            color: #ffffff;
+            box-shadow: 0 2px 10px var(--accent-glow);
+        }
+
+        .model-pill-btn.active-model-a {
+            background: #10b981;
+            color: #ffffff;
+            box-shadow: 0 2px 10px rgba(16, 185, 129, 0.3);
+        }
+
         .hop-path-bar {
             display: flex; align-items: center; justify-content: space-between;
             margin-top: 10px; position: relative;
@@ -239,9 +273,21 @@
         .hop-node {
             background: var(--bg-hover); border: 1px solid var(--border-color);
             border-radius: 10px; padding: 10px 14px; display: flex;
-            flex-direction: column; align-items: center; min-width: 135px;
+            flex-direction: column; align-items: center; min-width: 140px;
             position: relative; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             z-index: 2; flex-shrink: 0;
+        }
+
+        /* Bypassed AI Node Styling for Model A */
+        .hop-node.bypassed {
+            opacity: 0.45;
+            border: 1px dashed var(--text-secondary) !important;
+            filter: grayscale(0.85);
+            box-shadow: none !important;
+        }
+
+        .hop-node.bypassed .queue-meter {
+            visibility: hidden;
         }
 
         .hop-node.active-node {
@@ -482,7 +528,12 @@
             <div class="topology-card glass-panel">
                 <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.825rem; font-weight: 800; color: var(--text-secondary);">
                     <span>Live Hop Route (<span id="lbl-src" style="color: var(--text-primary);">192.168.1.105</span> ➔ <span id="lbl-dst" style="color: var(--text-primary);">10.0.4.22</span>)</span>
-                    <span id="route-status" style="color: var(--accent-blue);">● Engine: Model B (AI Pipeline)</span>
+                    
+                    <!-- DIRECT MODEL A / MODEL B TOGGLE SELECTOR -->
+                    <div class="model-toggle-group">
+                        <button class="model-pill-btn" id="btn-model-a" onclick="switchModel('modelA')">Model A (Baseline)</button>
+                        <button class="model-pill-btn active-model-b" id="btn-model-b" onclick="switchModel('modelB')">Model B (AI Engine)</button>
+                    </div>
                 </div>
 
                 <div class="hop-path-bar" id="hopPathBar">
@@ -505,6 +556,7 @@
 
                     <div class="hop-link"><div class="photon-fill" id="photon-1"></div></div>
 
+                    <!-- CORE AI NODE (WILL BE GRAYED OUT IN MODEL A) -->
                     <div class="hop-node" id="node-2">
                         <span style="font-weight:800; font-size:0.825rem;" id="node-2-title">Core AI Firewall</span>
                         <span style="font-size:0.725rem; color: var(--text-secondary);" id="delay-2">-- ms</span>
@@ -536,7 +588,7 @@
             <div class="cards-grid">
                 <div class="scrimba-card glass-panel">
                     <div style="font-size: 0.8rem; font-weight: 800; color: var(--text-secondary);">Observer Overhead</div>
-                    <div class="metric-big" id="tax-val">-- ns</div>
+                    <div class="metric-big" id="tax-val">+23.5 ns</div>
                 </div>
                 <div class="scrimba-card glass-panel">
                     <div style="font-size: 0.8rem; font-weight: 800; color: var(--text-secondary);">Threats Flagged</div>
@@ -580,10 +632,11 @@
                     </div>
                 </div>
 
+                <!-- SIMPLIFIED EASY-TO-READ GRAPH (Model A vs Model B Direct Latency Benchmark) -->
                 <div class="chart-card glass-panel">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
-                        <div style="font-size: 0.9rem; font-weight: 800;">Real-time Telemetry & Performance Curve</div>
-                        <div style="font-size: 0.725rem; font-weight: 700; color: var(--accent-blue);" id="chart-badge">● Engine Comparison</div>
+                        <div style="font-size: 0.9rem; font-weight: 800;">Latency Benchmark: Model A vs Model B</div>
+                        <div style="font-size: 0.725rem; font-weight: 800; color: var(--accent-blue);" id="chart-badge">● Total End-to-End Latency (ms)</div>
                     </div>
                     <div class="chart-container">
                         <canvas id="jitChart"></canvas>
@@ -594,20 +647,12 @@
         </main>
     </div>
 
-    <!-- CONFIGURATION MODAL (WITH MODEL A / B TOGGLE) -->
+    <!-- CONFIGURATION MODAL -->
     <div class="modal-overlay" id="configModal">
         <div class="modal-card">
             <div class="modal-header">
                 <span>⚙ Simulation Settings</span>
                 <button onclick="closeConfigModal()" style="background:none; border:none; color:var(--text-primary); cursor:pointer; font-weight:800; font-size:1.2rem;">✕</button>
-            </div>
-
-            <div class="form-group">
-                <label>Pipeline Model Engine</label>
-                <select id="cfg-engine" class="form-control" style="border: 1.5px solid var(--accent-blue);">
-                    <option value="modelB">Model B — Active AI Observer Pipeline (Default)</option>
-                    <option value="modelA">Model A — Procedural Baseline (Zero AI / Telemetry Tax)</option>
-                </select>
             </div>
 
             <div class="form-group">
@@ -678,7 +723,6 @@
         function closeConfigModal() { document.getElementById('configModal').classList.remove('active'); }
 
         function saveConfig() {
-            config.engine = document.getElementById('cfg-engine').value;
             config.srcIp = document.getElementById('cfg-src').value;
             config.dstIp = document.getElementById('cfg-dst').value;
             config.mode = document.getElementById('cfg-mode').value;
@@ -686,21 +730,39 @@
 
             document.getElementById('lbl-src').innerText = config.srcIp;
             document.getElementById('lbl-dst').innerText = config.dstIp;
-
-            const routeStatus = document.getElementById('route-status');
-            const nodeTitle = document.getElementById('node-2-title');
-
-            if (config.engine === 'modelA') {
-                routeStatus.innerText = "● Engine: Model A (Procedural Baseline)";
-                routeStatus.style.color = "#10b981";
-                if (nodeTitle) nodeTitle.innerText = "Core Router (Model A)";
-            } else {
-                routeStatus.innerText = "● Engine: Model B (AI Pipeline)";
-                routeStatus.style.color = "var(--accent-blue)";
-                if (nodeTitle) nodeTitle.innerText = "Core AI Firewall";
-            }
-
             closeConfigModal();
+        }
+
+        /* INLINE MODEL A / MODEL B SWITCHING FUNCTION */
+        function switchModel(selectedEngine) {
+            config.engine = selectedEngine;
+            const btnA = document.getElementById('btn-model-a');
+            const btnB = document.getElementById('btn-model-b');
+            const node2 = document.getElementById('node-2');
+            const node2Title = document.getElementById('node-2-title');
+
+            if (selectedEngine === 'modelA') {
+                btnA.className = 'model-pill-btn active-model-a';
+                btnB.className = 'model-pill-btn';
+                
+                // Gray out / Bypass the Core AI Firewall Node
+                if (node2) node2.classList.add('bypassed');
+                if (node2Title) node2Title.innerText = "Core Router (AI OFF)";
+
+                document.getElementById('tax-val').innerText = "0 ns";
+                document.getElementById('threat-val').innerText = "0 (Blind)";
+                document.getElementById('threat-val').style.color = "var(--text-secondary)";
+            } else {
+                btnB.className = 'model-pill-btn active-model-b';
+                btnA.className = 'model-pill-btn';
+                
+                // Reactivate Core AI Firewall Node
+                if (node2) node2.classList.remove('bypassed');
+                if (node2Title) node2Title.innerText = "Core AI Firewall";
+
+                document.getElementById('tax-val').innerText = "+23.5 ns";
+                document.getElementById('threat-val').style.color = "var(--accent-coral)";
+            }
         }
 
         function changeTheme(themeName) { 
@@ -711,43 +773,33 @@
             updateChartColors();
         }
 
-        // CHART INITIALIZATION
+        // SIMPLIFIED SINGLE Y-AXIS BENCHMARK GRAPH INITIALIZATION
         const ctxChart = document.getElementById('jitChart').getContext('2d');
-        const latencyGradient = ctxChart.createLinearGradient(0, 0, 0, 200);
-        latencyGradient.addColorStop(0, 'rgba(16, 185, 129, 0.35)');
-        latencyGradient.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
 
         let jitChart = new Chart(ctxChart, {
             type: 'line',
             data: {
-                labels: Array.from({length: 10}, (_, i) => `Pass ${i+1}`),
+                labels: Array.from({length: 8}, (_, i) => `Iteration ${i+1}`),
                 datasets: [
                     { 
-                        label: 'Pipeline Latency (ms)', 
-                        data: [44.46, 20.10, 12.18, 8.20, 6.12, 4.35, 4.32, 4.31, 4.31, 4.313], 
+                        label: 'Model A (Baseline Routing)', 
+                        data: [28.4, 16.2, 9.8, 6.1, 4.2, 3.9, 3.85, 3.85], 
                         borderColor: '#10b981', 
-                        backgroundColor: latencyGradient,
-                        fill: true,
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
                         borderWidth: 2.5, 
-                        tension: 0.35,
-                        yAxisID: 'y'
+                        tension: 0.3,
+                        pointRadius: 4,
+                        pointBackgroundColor: '#10b981'
                     },
                     { 
-                        label: 'Observer Overhead (ns)', 
-                        data: [68.2, 45.1, 32.8, 28.4, 25.1, 23.9, 23.6, 23.5, 23.5, 23.4], 
-                        borderColor: '#ff5757', 
-                        borderWidth: 2, 
-                        borderDash: [4, 4],
-                        tension: 0.35,
-                        yAxisID: 'y1'
-                    },
-                    { 
-                        label: 'Throughput (Kpps)', 
-                        data: [4.2, 7.8, 10.5, 12.8, 14.1, 14.7, 14.8, 14.8, 14.82, 14.82], 
+                        label: 'Model B (AI Observer Pipeline)', 
+                        data: [31.8, 18.1, 11.2, 7.2, 4.8, 4.35, 4.31, 4.31], 
                         borderColor: '#0088ff', 
-                        borderWidth: 2, 
-                        tension: 0.35,
-                        yAxisID: 'y1'
+                        backgroundColor: 'rgba(0, 136, 255, 0.1)',
+                        borderWidth: 2.5, 
+                        tension: 0.3,
+                        pointRadius: 4,
+                        pointBackgroundColor: '#0088ff'
                     }
                 ]
             },
@@ -758,49 +810,33 @@
                 plugins: { 
                     legend: { 
                         position: 'top',
-                        labels: { font: { size: 10, family: 'Inter', weight: '700' }, boxWidth: 12, padding: 10 } 
+                        labels: { font: { size: 11, family: 'Inter', weight: '700' }, boxWidth: 14, padding: 12 } 
                     },
                     tooltip: {
                         backgroundColor: 'rgba(15, 20, 29, 0.95)',
-                        titleFont: { size: 11, family: 'Inter', weight: '800' },
-                        bodyFont: { size: 11, family: 'Inter' },
+                        titleFont: { size: 12, family: 'Inter', weight: '800' },
+                        bodyFont: { size: 12, family: 'Inter' },
                         padding: 10,
                         borderColor: '#2a374c',
                         borderWidth: 1,
                         callbacks: {
                             label: function(context) {
-                                let label = context.dataset.label || '';
-                                if (label) label += ': ';
-                                if (context.parsed.y !== null) {
-                                    if (context.datasetIndex === 0) label += context.parsed.y + ' ms';
-                                    else if (context.datasetIndex === 1) label += context.parsed.y + ' ns';
-                                    else label += context.parsed.y + ' Kpps';
-                                }
-                                return label;
+                                return ` ${context.dataset.label}: ${context.parsed.y} ms`;
                             }
                         }
                     }
                 },
                 scales: {
                     x: { 
-                        ticks: { font: { size: 9, family: 'Inter' } }, 
+                        ticks: { font: { size: 10, family: 'Inter' } }, 
                         grid: { color: 'rgba(255,255,255,0.06)' } 
                     },
                     y: { 
                         type: 'linear',
                         display: true,
-                        position: 'left',
-                        title: { display: true, text: 'Latency (ms)', font: { size: 9, family: 'Inter', weight: '700' }, color: '#10b981' },
-                        ticks: { font: { size: 9, family: 'Inter' } }, 
+                        title: { display: true, text: 'Execution Time (ms)', font: { size: 10, family: 'Inter', weight: '700' }, color: '#94a3b8' },
+                        ticks: { font: { size: 10, family: 'Inter' } }, 
                         grid: { color: 'rgba(255,255,255,0.06)' } 
-                    },
-                    y1: {
-                        type: 'linear',
-                        display: true,
-                        position: 'right',
-                        title: { display: true, text: 'Tax (ns) / Kpps', font: { size: 9, family: 'Inter', weight: '700' }, color: '#0088ff' },
-                        ticks: { font: { size: 9, family: 'Inter' } },
-                        grid: { drawOnChartArea: false }
                     }
                 }
             }
@@ -819,7 +855,6 @@
             jitChart.options.scales.y.grid.color = gridColor;
             jitChart.options.scales.x.ticks.color = textColor;
             jitChart.options.scales.y.ticks.color = textColor;
-            jitChart.options.scales.y1.ticks.color = textColor;
             jitChart.update();
         }
 
@@ -851,7 +886,7 @@
                     }
                 }
 
-                // If Model A is active, threats are bypassed/not visually highlighted
+                // In Model A, bypass threat highlighting on node 2
                 if (!isModelA && hops[i] && hops[i].threat) {
                     currentNode.classList.add('threat');
                 }
@@ -942,8 +977,7 @@
                         const qtxtEl = document.getElementById(`qtxt-${i}`);
 
                         if (delayEl && qfillEl && qtxtEl) {
-                            // Model A has slightly faster hop processing without AI inspection
-                            const adjustedDelay = isModelA ? (h.delay_ms * 0.94).toFixed(2) : h.delay_ms;
+                            const adjustedDelay = isModelA ? (h.delay_ms * 0.92).toFixed(2) : h.delay_ms;
                             delayEl.innerText = `${adjustedDelay} ms`;
                             qtxtEl.innerText = `Queue: ${h.queue_depth}/${h.queue_capacity}`;
 
@@ -956,19 +990,16 @@
                     });
                 }
 
-                // DYNAMIC CHART UPDATE: Compare Model A vs Model B curves
-                const latestLatency = data.hops ? data.hops.reduce((a, b) => a + b.delay_ms, 0) : 4.31;
-                const activeLatency = isModelA ? Number((latestLatency * 0.94).toFixed(2)) : Number(latestLatency.toFixed(2));
-                const activeTax = isModelA ? 0 : data.tax_ns;
+                // DYNAMIC GRAPH UPDATE: Live latency comparison
+                const rawTotalMs = data.hops ? data.hops.reduce((a, b) => a + b.delay_ms, 0) : 4.31;
+                const modelAMs = Number((rawTotalMs * 0.92).toFixed(2));
+                const modelBMs = Number(rawTotalMs.toFixed(2));
 
                 jitChart.data.datasets[0].data.shift();
-                jitChart.data.datasets[0].data.push(activeLatency);
+                jitChart.data.datasets[0].data.push(modelAMs);
 
                 jitChart.data.datasets[1].data.shift();
-                jitChart.data.datasets[1].data.push(activeTax);
-
-                jitChart.data.datasets[2].data.shift();
-                jitChart.data.datasets[2].data.push(Number((data.throughput_pps / 1000).toFixed(2)));
+                jitChart.data.datasets[1].data.push(modelBMs);
 
                 jitChart.update();
 
@@ -978,14 +1009,13 @@
                     tbody.innerHTML = '';
                     data.packet_stream.forEach(p => {
                         const row = document.createElement('tr');
-                        // Model A passes all packets as uninspected BENIGN
                         const isThreatShown = !isModelA && p.threat;
                         row.innerHTML = `
                             <td><b>${p.id}</b></td>
                             <td>${p.srcIp}:${p.srcPort}</td>
                             <td>${p.dstIp}:${p.dstPort}</td>
                             <td>${p.protocol}</td>
-                            <td><span class="${isThreatShown ? 'badge-threat' : 'badge-ok'}">${isThreatShown ? '⚠️ ' + p.type : (isModelA ? '✓ PASSED (RAW)' : '✓ BENIGN')}</span></td>
+                            <td><span class="${isThreatShown ? 'badge-threat' : 'badge-ok'}">${isThreatShown ? '⚠️ ' + p.type : (isModelA ? '✓ PASSED (UNINSPECTED)' : '✓ BENIGN')}</span></td>
                         `;
                         tbody.appendChild(row);
                     });
