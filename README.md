@@ -232,8 +232,14 @@ mvn test
 ```bash
 mvn compile exec:java -Dexec.mainClass=com.nettrace.modelA_baseline.ProceduralSimulator
 mvn compile exec:java -Dexec.mainClass=com.nettrace.modelB_patterns.PatternSimulator
-mvn compile exec:java -Dexec.mainClass=com.nettrace.benchmark.BenchmarkRunner
 ```
+> Note: `BenchmarkRunner` itself currently has no `main()` method, so there
+> is no standalone CLI command for it yet — the only way to exercise it
+> today is indirectly, via `GET /api/run` (live, 200 warmup / 15 timed
+> passes) or via the JUnit tests in `PatternEngineTest` (a handful of
+> passes, for correctness, not for a real measurement). Add a `main()`
+> to `BenchmarkRunner.java` if a standalone offline benchmark command is
+> needed later.
 
 **Docker:**
 ```bash
@@ -254,11 +260,26 @@ docker run -p 5000:5000 nettrace
 Both `ProceduralSimulator.runQuiet(seed)` and `PatternSimulator.runQuiet(seed)`:
 - perform **zero console I/O** inside the timed region (timing isn't
   polluted by `System.out`)
-- are **reseeded with the same seed on every call**, so every run — not
-  just the first — is reproducible and directly comparable
-- are preceded by untimed warm-up passes (10 offline / 5 live) to let the
-  JIT compiler settle before timing starts
+- are **reseeded on every call** (`seed + passIndex`), so each paired pass
+  is reproducible and directly comparable between the two models, even
+  though the seed itself increments across passes within a run
+- are preceded by untimed warm-up passes to let the JIT compiler settle
+  before timing starts. The live dashboard (`NetTraceServer`) currently
+  requests **200 warm-up passes** per `/api/run` call, and
+  `BenchmarkRunner.run()` additionally enforces a floor of 25 warm-up
+  passes even if a caller asks for fewer
 
-`BenchmarkRunner` reports the average over many timed runs (50 offline,
-15 live) rather than a single sample, since individual runs are subject to
-normal JIT/GC timing noise at millisecond scale.
+`BenchmarkRunner` reports the average over **15 timed passes** per live
+request (`LIVE_BENCHMARK_RUNS`), and before averaging it applies a
+**trimmed mean**: for each model, the fastest 1 and slowest 3 of the
+timed samples are discarded, so a single JIT hiccup or GC pause (more
+likely to spike a run slow than fast on a shared-tenant deployment)
+doesn't skew the reported average.
+
+> The badge/benchmark-table figures referenced elsewhere for this project
+> (4.313 ms / 4.412 ms / +2.30% over 50 runs) came from a specific past
+> run. As of this codebase, there is no standalone entry point that
+> reproduces exactly that 50-run configuration on demand — see the note
+> under "Running it" above. Treat those figures as a real, one-time
+> result rather than a number you can currently regenerate with a single
+> documented command.
