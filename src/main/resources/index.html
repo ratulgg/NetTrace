@@ -761,6 +761,10 @@
                     <div style="font-weight: 800; color: var(--text-primary); margin-bottom: 4px;">What "Observer Overhead" means</div>
                     <div style="color: var(--text-secondary);">The measured extra time Model B spends dispatching to its Observer-pattern listeners, versus Model A's inline check doing the equivalent work. It's the real, per-request cost of that abstraction — not a hardcoded figure.</div>
                 </div>
+                <div>
+                    <div style="font-weight: 800; color: var(--accent-coral); margin-bottom: 4px;">How the packet stream is classified</div>
+                    <div style="color: var(--text-secondary);">The Synthetic Packet Stream Log below is classified by <b>AiThreatClassifier</b> — a small logistic regression trained offline on labeled synthetic packet data (payload size, SYN flag, port, protocol), not a random coin flip or a hardcoded rule. "Attack mode" only skews which <i>features</i> get generated (bigger payloads, more SYN packets, suspicious ports) — the model itself decides threat status from those features, the same way a real classifier only ever sees traffic, never an answer key. Training code lives in <code>training/train_threat_classifier.py</code>; inference in the running server is just the learned weights and a sigmoid, no ML library required.</div>
+                </div>
             </div>
         </div>
     </div>
@@ -1000,11 +1004,26 @@
             const modal = document.getElementById('testModal');
             const container = document.getElementById('testListContainer');
             container.innerHTML = '<div style="text-align:center; padding: 24px; font-size: 0.85rem; font-weight:700;">Executing backend JUnit assertions...</div>';
+
+            const banner = document.getElementById('testSummaryBanner');
+            banner.style.background = 'var(--bg-hover)';
+            banner.style.borderColor = 'var(--border-color)';
+            banner.style.color = 'var(--text-secondary)';
+            banner.querySelector('span').innerText = 'STATUS: RUNNING...';
+            document.getElementById('testScore').innerText = '-- / -- Tests';
+
             modal.classList.add('active');
 
             try {
                 const res = await fetch('/api/tests');
                 const data = await res.json();
+
+                const allPassed = data.status === 'PASSED';
+                banner.style.background = allPassed ? 'rgba(16, 185, 129, 0.18)' : 'rgba(239, 68, 68, 0.18)';
+                banner.style.borderColor = allPassed ? '#10b981' : 'var(--accent-coral)';
+                banner.style.color = allPassed ? '#10b981' : 'var(--accent-coral)';
+                banner.querySelector('span').innerText = allPassed ? 'STATUS: ALL ASSERTIONS PASSED' : 'STATUS: ASSERTION FAILURE DETECTED';
+                document.getElementById('testScore').innerText = `${data.passed_tests} / ${data.total_tests} Tests`;
 
                 container.innerHTML = '';
                 data.results.forEach(t => {
@@ -1018,9 +1037,13 @@
                     item.style.justifyContent = 'space-between';
                     item.style.alignItems = 'center';
 
+                    const statusLabel = t.passed
+                        ? '<span style="color: #10b981; font-weight: 800;">✓ PASSED</span>'
+                        : '<span style="color: var(--accent-coral); font-weight: 800;">✕ FAILED</span>';
+
                     item.innerHTML = `
                         <span style="font-weight:600;">${t.name}</span>
-                        <span style="color: #10b981; font-weight: 800;">✓ PASSED</span>
+                        ${statusLabel}
                     `;
                     container.appendChild(item);
                 });

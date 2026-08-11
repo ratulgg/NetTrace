@@ -29,6 +29,9 @@ shown live in the dashboard, not hardcoded from a one-time offline run.
 
 - 5-hop packet routing simulation with per-node queue backpressure
 - Threat detection at a simulated firewall node, toggleable "attack mode"
+- Synthetic packet stream classified by a genuinely trained logistic
+  regression (`AiThreatClassifier`) — not a coin flip or hardcoded rule;
+  see `training/train_threat_classifier.py`
 - Live Model A vs Model B latency benchmark, charted in real time
 - In-browser JUnit test runner (`/api/tests`) that surfaces backend
   assertions in the UI
@@ -50,6 +53,7 @@ com.nettrace
 ├── Packet.java                # dashboard's packet/hop display model
 ├── PacketQueue.java           # dashboard's queue/backpressure simulation
 ├── TopologyEngine.java        # dashboard's 5-hop routing simulation
+├── AiThreatClassifier.java    # trained logistic regression, packet threat scoring
 ├── benchmark/
 │   └── BenchmarkRunner.java   # runs Model A vs Model B, computes the tax
 ├── modelA_baseline/
@@ -61,6 +65,9 @@ com.nettrace
     ├── channel/
     │   └── NetworkChannel.java # the Observer "Subject"
     └── PatternSimulator.java  # Model B — Factory + Observer wired together
+
+training/
+└── train_threat_classifier.py # offline training for AiThreatClassifier (scikit-learn)
 ```
 
 > `com.nettrace.Packet` (dashboard display model) and

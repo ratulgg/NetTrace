@@ -72,20 +72,39 @@ static class ApiTestsHandler implements HttpHandler {
         List<SyntheticPacketStream.SyntheticPacket> attackBatch = stream.generateStreamBatch(50, true, "10.0.0.1", "10.0.0.2");
         boolean t8 = attackBatch.stream().filter(pkt -> pkt.isThreat).count() > 0;
 
+        // Live inference check on AiThreatClassifier directly -- not routed
+        // through the generator, so this confirms the model itself, not just
+        // traffic shaped to please it.
+        boolean t9 = AiThreatClassifier.scorePacket("TCP", "ACK", 64, 8080, 443) < AiThreatClassifier.THREAT_THRESHOLD
+                  && AiThreatClassifier.scorePacket("ICMP", "SYN", 1400, 62000, 31337) > AiThreatClassifier.THREAT_THRESHOLD;
+
+        boolean[] results = {t1, t2, t3, t4, t5, t6, t7, t8, t9};
+        String[] names = {
+            "PacketQueue capacity boundary test",
+            "Queue delay non-negativity check",
+            "5-Hop sequential topology traversal",
+            "Client Gateway ingress node check",
+            "Core AI Firewall threat anomaly detection",
+            "Batch stream generation size matching",
+            "Packet header IP/Port integrity verification",
+            "Attack mode elevated threat ratio test",
+            "AiThreatClassifier benign/attack score separation"
+        };
+
+        int passedCount = 0;
+        for (boolean r : results) if (r) passedCount++;
+        boolean allPassed = passedCount == results.length;
+
         StringBuilder json = new StringBuilder();
         json.append("{");
-        json.append("\"status\": \"PASSED\",");
-        json.append("\"total_tests\": 8,");
-        json.append("\"passed_tests\": 8,");
+        json.append(String.format("\"status\": \"%s\",", allPassed ? "PASSED" : "FAILED"));
+        json.append(String.format("\"total_tests\": %d,", results.length));
+        json.append(String.format("\"passed_tests\": %d,", passedCount));
         json.append("\"results\": [");
-        json.append(String.format("{\"name\":\"PacketQueue capacity boundary test\",\"passed\":%b},", t1));
-        json.append(String.format("{\"name\":\"Queue delay non-negativity check\",\"passed\":%b},", t2));
-        json.append(String.format("{\"name\":\"5-Hop sequential topology traversal\",\"passed\":%b},", t3));
-        json.append(String.format("{\"name\":\"Client Gateway ingress node check\",\"passed\":%b},", t4));
-        json.append(String.format("{\"name\":\"Core AI Firewall threat anomaly detection\",\"passed\":%b},", t5));
-        json.append(String.format("{\"name\":\"Batch stream generation size matching\",\"passed\":%b},", t6));
-        json.append(String.format("{\"name\":\"Packet header IP/Port integrity verification\",\"passed\":%b},", t7));
-        json.append(String.format("{\"name\":\"Attack mode elevated threat ratio test\",\"passed\":%b}", t8));
+        for (int i = 0; i < results.length; i++) {
+            json.append(String.format("{\"name\":\"%s\",\"passed\":%b}", names[i], results[i]));
+            if (i < results.length - 1) json.append(",");
+        }
         json.append("]}");
 
         byte[] resp = json.toString().getBytes("UTF-8");
@@ -274,29 +293,73 @@ static class ApiTestsHandler implements HttpHandler {
 
         private final Random rand = new Random();
 
+        // Ports a botnet/C2 or scanning tool would realistically use,
+        // mixed in during attack mode so the generated traffic actually has
+        // the "suspicious port" feature the classifier looks for.
+        private static final int[] SUSPICIOUS_PORTS = {4444, 31337, 6667, 1337};
+
+        /**
+         * Generates a batch of synthetic packets and classifies each one with
+         * {@link AiThreatClassifier} -- a logistic regression trained offline
+         * (see training/train_threat_classifier.py) rather than a random coin
+         * flip.
+         *
+         * attackMode does NOT set isThreat directly. It skews the generated
+         * traffic's *features* toward what real attack traffic tends to look
+         * like (bigger payloads, more SYN packets, occasional suspicious
+         * destination ports, high ephemeral source ports) -- then the
+         * classifier decides isThreat purely from those features, the same
+         * way a real detector only ever sees traffic, never a ready-made
+         * answer.
+         */
         public List<SyntheticPacket> generateStreamBatch(int count, boolean attackMode, String srcIp, String dstIp) {
             List<SyntheticPacket> batch = new ArrayList<>();
             String[] protocols = {"TCP", "UDP", "ICMP"};
-            String[] attackTypes = {"SYN Flood", "Port Scan", "DDoS Payload", "SQLi Injection"};
 
-            double threatRatio = attackMode ? 0.70 : 0.20;
+            int payloadFloor = attackMode ? 500 : 64;
+            int payloadRange = attackMode ? 964 : 736; // stays within 64..1464 either way
+            double synProbability = attackMode ? 0.6 : 0.2;
+            double suspiciousPortProbability = attackMode ? 0.45 : 0.0;
+            double highSrcPortProbability = attackMode ? 0.55 : 0.25;
 
             for (int i = 1; i <= count; i++) {
                 SyntheticPacket p = new SyntheticPacket();
                 p.id = "PKT-" + (1000 + rand.nextInt(9000));
                 p.srcIp = srcIp;
                 p.dstIp = dstIp;
-                p.srcPort = 1024 + rand.nextInt(64511);
-                p.dstPort = (rand.nextBoolean()) ? 80 : (rand.nextBoolean() ? 443 : 8080);
+
+                p.srcPort = (rand.nextDouble() < highSrcPortProbability)
+                        ? 60001 + rand.nextInt(4535)   // high/ephemeral range
+                        : 1024 + rand.nextInt(58976);   // normal range
+
+                p.dstPort = (rand.nextDouble() < suspiciousPortProbability)
+                        ? SUSPICIOUS_PORTS[rand.nextInt(SUSPICIOUS_PORTS.length)]
+                        : (rand.nextBoolean() ? 80 : 443);
+
                 p.protocol = protocols[rand.nextInt(protocols.length)];
-                p.flags = p.protocol.equals("TCP") ? (rand.nextBoolean() ? "SYN" : "ACK") : "N/A";
-                p.sizeBytes = 64 + rand.nextInt(1436);
-                p.isThreat = rand.nextDouble() < threatRatio;
-                p.attackType = p.isThreat ? attackTypes[rand.nextInt(attackTypes.length)] : "BENIGN";
+                p.flags = p.protocol.equals("TCP") ? (rand.nextDouble() < synProbability ? "SYN" : "ACK") : "N/A";
+                p.sizeBytes = payloadFloor + rand.nextInt(payloadRange);
+
+                p.isThreat = AiThreatClassifier.isThreat(p.protocol, p.flags, p.sizeBytes, p.srcPort, p.dstPort);
+                p.attackType = p.isThreat ? classifyAttackType(p) : "BENIGN";
 
                 batch.add(p);
             }
             return batch;
+        }
+
+        /**
+         * Illustrative label only -- the classifier outputs a threat
+         * probability, not an attack category, so this just picks a
+         * plausible-sounding name from whichever feature looks most
+         * responsible for the flag. Not itself a modeled prediction.
+         */
+        private String classifyAttackType(SyntheticPacket p) {
+            if ("SYN".equals(p.flags)) return "SYN Flood";
+            if (p.dstPort == 4444 || p.dstPort == 31337 || p.dstPort == 6667 || p.dstPort == 1337) return "C2 Beacon";
+            if (p.sizeBytes > 1100) return "DDoS Payload";
+            if ("TCP".equals(p.protocol)) return "SQLi Injection";
+            return "Port Scan";
         }
     }
 }
