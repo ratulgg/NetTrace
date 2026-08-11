@@ -483,6 +483,10 @@
                     <div style="font-weight: 800; color: var(--text-primary); margin-bottom: 4px;">What "Observer Overhead" means</div>
                     <div style="color: var(--text-secondary);">The measured extra time Model B spends dispatching to its Observer-pattern listeners, versus Model A's inline check doing the equivalent work. It's the real, per-request cost of that abstraction — not a hardcoded figure.</div>
                 </div>
+                <div>
+                    <div style="font-weight: 800; color: var(--text-primary); margin-bottom: 4px;">How the hop route ties to Model A/B</div>
+                    <div style="color: var(--text-secondary);">Model A's displayed hop delays are scaled by the actual measured ratio between this request's Model A and Model B benchmark averages (<code>model_a_ratio</code> in the API response) — not a fixed constant. The "Core AI Firewall" hop's threat flag is decided by a real call to <code>AiThreatClassifier</code>, the same trained logistic regression used in the packet log below, not just an on/off attack-mode flag.</div>
+                </div>
             </div>
         </div>
     </div>
@@ -824,12 +828,16 @@
                 }
 
                 if (data.hops) {
+                    // Real, live-measured ratio (Model A avg / Model B avg duration) from
+                    // this exact request's BenchmarkRunner pass -- replaces the old
+                    // hardcoded *0.92 guess with an actual measurement.
+                    const modelARatio = (typeof data.model_a_ratio === 'number' && data.model_a_ratio > 0) ? data.model_a_ratio : 1;
                     data.hops.forEach((h, i) => {
                         const delayEl = document.getElementById(`delay-${i}`);
                         const qfillEl = document.getElementById(`qfill-${i}`);
                         const qtxtEl = document.getElementById(`qtxt-${i}`);
                         if (delayEl && qfillEl && qtxtEl) {
-                            const adjustedDelay = isModelA ? (h.delay_ms * 0.92).toFixed(2) : h.delay_ms;
+                            const adjustedDelay = isModelA ? (h.delay_ms * modelARatio).toFixed(2) : h.delay_ms.toFixed(2);
                             delayEl.innerText = `${adjustedDelay} ms`;
                             qtxtEl.innerText = `Queue: ${h.queue_depth}/${h.queue_capacity}`;
                             const fillPct = (h.queue_depth / h.queue_capacity) * 100;

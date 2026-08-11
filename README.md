@@ -122,7 +122,12 @@ training/
 > `com.nettrace.modelB_patterns.core.Packet` (the pattern being
 > benchmarked) are intentionally separate, unrelated classes in different
 > packages — the dashboard's routing visualization doesn't use Factory or
-> Observer at all.
+> Observer at all. That said, two things about the topology view *are*
+> genuinely tied to real measurements/inference (see "Benchmark
+> methodology" below): Model A's displayed hop delays are scaled by the
+> actual measured Model A/B duration ratio from that request, not a
+> hardcoded constant, and the "Core AI Firewall" hop's threat flag comes
+> from a real `AiThreatClassifier` call, not an attack-mode boolean.
 
 ## UML — class diagram
 
@@ -323,6 +328,33 @@ request (`LIVE_BENCHMARK_RUNS`), and before averaging it applies a
 timed samples are discarded, so a single JIT hiccup or GC pause (more
 likely to spike a run slow than fast on a shared-tenant deployment)
 doesn't skew the reported average.
+
+### How the topology view ties into this
+
+`GET /api/run` now includes `"model_a_ratio"` — `avgModelAMs / avgModelBMs`
+from that exact request's `BenchmarkRunner` pass. The dashboard uses this
+to scale Model A's displayed hop delays (`h.delay_ms * model_a_ratio`),
+replacing a previous hardcoded `* 0.92` client-side guess. This means "how
+much faster Model A's hop trace looks" now moves with the real, live
+measurement each request — including its natural run-to-run noise —
+instead of a fixed constant.
+
+Separately, `TopologyEngine.tracePacketPath()` no longer sets the "Core AI
+Firewall" hop's threat flag from `simulateThreat && node == firewall`. It
+generates one representative packet (same feature distributions
+`SyntheticPacketStream` uses for the packet log, biased by attack mode)
+and calls the real `AiThreatClassifier.isThreat(...)` — the same trained
+logistic regression, the same scoring code. That means the flag is now
+genuinely probabilistic rather than deterministic: attack mode makes a
+threat *likely* at that hop (empirically close to the classifier's
+training accuracy), not *certain* on every single trace. `NetTraceEngineTest`
+was updated accordingly to assert the statistical tendency across repeated
+traces rather than a guaranteed hit on any one call.
+
+What's still a simulated approximation, not a real measurement: the base
+per-hop network latencies (`baseLatencyMs` for each of the 5 router
+nodes) and the synthetic queue backpressure — those represent an assumed
+network topology, not something instrumented from real packet transit.
 
 > The badge/benchmark-table figures referenced elsewhere for this project
 > (4.313 ms / 4.412 ms / +2.30% over 50 runs) came from a specific past

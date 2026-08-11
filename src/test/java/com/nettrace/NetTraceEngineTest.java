@@ -88,15 +88,36 @@ class NetTraceEngineTest {
         }
 
         @Test
-        @DisplayName("Should detect threat specifically at Core AI Firewall node when attack mode enabled")
+        @DisplayName("Core AI Firewall should flag threats far more often in attack mode, since the hop now runs the real trained classifier instead of a hardcoded flag")
         void testFirewallThreatFlagging() {
-            Packet packet = topology.tracePacketPath("PKT-9999", "192.168.1.105", "10.0.4.22", true);
+            // The firewall hop now calls the same AiThreatClassifier used by the
+            // packet log, on randomized-but-attack-mode-biased features -- so a
+            // single trace is no longer guaranteed to flag a threat the way a
+            // hardcoded `simulateThreat && node == firewall` boolean was. Instead,
+            // verify the real classifier fires far more often under attack mode
+            // across repeated traces, the same way testAttackModeThreatRatio
+            // already validates SyntheticPacketStream below.
+            int trials = 200;
+            int attackFlags = 0;
+            int normalFlags = 0;
 
-            assertFalse(packet.hops.get(0).threatDetected, "Client Gateway should be benign");
-            assertFalse(packet.hops.get(1).threatDetected, "Ingress Router should be benign");
-            assertTrue(packet.hops.get(2).threatDetected, "Core AI Firewall must flag threat anomaly");
-            assertFalse(packet.hops.get(3).threatDetected, "Egress Switch should be benign");
-            assertFalse(packet.hops.get(4).threatDetected, "Target Server should be benign");
+            for (int i = 0; i < trials; i++) {
+                Packet attackPacket = topology.tracePacketPath("PKT-9999", "192.168.1.105", "10.0.4.22", true);
+                Packet normalPacket = topology.tracePacketPath("PKT-0000", "192.168.1.105", "10.0.4.22", false);
+
+                assertFalse(attackPacket.hops.get(0).threatDetected, "Client Gateway should never flag a threat");
+                assertFalse(attackPacket.hops.get(1).threatDetected, "Ingress Router should never flag a threat");
+                assertFalse(attackPacket.hops.get(3).threatDetected, "Egress Switch should never flag a threat");
+                assertFalse(attackPacket.hops.get(4).threatDetected, "Target Server should never flag a threat");
+
+                if (attackPacket.hops.get(2).threatDetected) attackFlags++;
+                if (normalPacket.hops.get(2).threatDetected) normalFlags++;
+            }
+
+            assertTrue(attackFlags > normalFlags,
+                "Attack-mode traces should trip the real classifier at the firewall hop more often than normal-mode traces");
+            assertTrue(attackFlags > trials / 4,
+                "Attack mode should flag a meaningful fraction of traces given the classifier's feature distribution");
         }
 
         @Test

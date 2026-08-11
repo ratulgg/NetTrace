@@ -192,10 +192,21 @@ public class NetTraceServer {
             double taxNs = benchmark.taxMs * 1_000_000.0;
             double taxPercent = benchmark.taxPercent;
 
+            // Real, live-measured ratio of Model A's average duration to Model B's,
+            // from the SAME BenchmarkRunner pass as the tax figure above. The
+            // topology view uses this to scale Model A's displayed hop delays --
+            // replacing what used to be a hardcoded *0.92 guess on the client --
+            // so "how much faster Model A looks" is driven by an actual
+            // measurement of this request, not a fixed constant.
+            double modelARatio = (benchmark.avgModelBMs > 0)
+                    ? benchmark.avgModelAMs / benchmark.avgModelBMs
+                    : 1.0;
+
             StringBuilder json = new StringBuilder();
             json.append("{");
             json.append(String.format("\"tax_ns\": %.1f,", taxNs));
             json.append(String.format("\"tax_percent\": %.2f,", taxPercent));
+            json.append(String.format("\"model_a_ratio\": %.4f,", modelARatio));
             json.append(String.format("\"detected_threats\": %d,", threatsCount));
             json.append(String.format("\"throughput_pps\": %d,", attackMode ? 48500 : 14820));
             json.append(String.format("\"packet_loss_pct\": %.2f,", attackMode ? 3.42 : 0.01));
