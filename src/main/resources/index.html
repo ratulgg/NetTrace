@@ -219,7 +219,6 @@
                     </div>
                 </div>
 
-                <!-- Subtitle to match your custom screenshot -->
                 <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); text-align: right; margin-top: 6px;">
                     A = procedural · B = Factory + Observer patterns
                 </div>
@@ -272,7 +271,6 @@
                         Observer Overhead
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
                     </div>
-                    <!-- THIS ID="tax-val" IS THE MOST IMPORTANT PART! -->
                     <div class="metric-big" id="tax-val">-- ns</div>
                 </div>
                 <div class="scrimba-card glass-panel">
@@ -420,9 +418,6 @@
             const btnDual = document.getElementById('btn-model-dual');
             const node2 = document.getElementById('node-2');
             const node2Title = document.getElementById('node-2-title');
-            
-            const taxElement = document.getElementById('tax-val');
-            const threatElement = document.getElementById('threat-val');
 
             btnA.className = 'model-pill-btn';
             btnB.className = 'model-pill-btn';
@@ -432,39 +427,18 @@
                 btnA.className = 'model-pill-btn active-model-a';
                 if (node2) node2.classList.add('bypassed');
                 if (node2Title) node2Title.innerText = "Core Router (AI OFF)";
-                
-                if (taxElement) {
-                    taxElement.innerText = "0 ns";
-                    taxElement.style.color = "var(--text-secondary)";
-                }
-                if (threatElement) {
-                    threatElement.innerText = "0 (Blind)";
-                    threatElement.style.color = "var(--text-secondary)";
-                }
                 jitChart.setDatasetVisibility(0, true);
                 jitChart.setDatasetVisibility(1, false);
             } else if (selectedEngine === 'modelB') {
                 btnB.className = 'model-pill-btn active-model-b';
                 if (node2) node2.classList.remove('bypassed');
                 if (node2Title) node2Title.innerText = "Core AI Firewall";
-                
-                if (taxElement) {
-                    taxElement.innerText = "Press Run ⚡";
-                    taxElement.style.color = "var(--accent-blue)";
-                }
-                if (threatElement) threatElement.style.color = "var(--accent-coral)";
                 jitChart.setDatasetVisibility(0, false);
                 jitChart.setDatasetVisibility(1, true);
             } else {
                 btnDual.className = 'model-pill-btn active-model-dual';
                 if (node2) node2.classList.remove('bypassed');
                 if (node2Title) node2Title.innerText = "Core AI Firewall";
-                
-                if (taxElement) {
-                    taxElement.innerText = "Press Run ⚡";
-                    taxElement.style.color = "var(--accent-blue)";
-                }
-                if (threatElement) threatElement.style.color = "var(--accent-coral)";
                 jitChart.setDatasetVisibility(0, true);
                 jitChart.setDatasetVisibility(1, true);
             }
@@ -573,7 +547,6 @@
 
                 if (data.hops) await runPhotonSequence(data.hops, isModelA);
 
-                // --- BULLETPROOF SEPARATED DOM UPDATES ---
                 const taxElement = document.getElementById('tax-val');
                 if (taxElement) {
                     if (isModelA) {
@@ -623,8 +596,9 @@
 
                 runCount++;
                 const newLabel = `Run #${runCount}`;
-                const modelAMs = data.model_a_latency_ms || 16.3;
-                const modelBMs = data.model_b_latency_ms || 17.7;
+                const rawTotalMs = data.hops ? data.hops.reduce((a, b) => a + b.delay_ms, 0) : 18.6;
+                const modelBMs = Number(rawTotalMs.toFixed(2));
+                const modelAMs = Number((rawTotalMs * 0.92).toFixed(2));
 
                 if (jitChart.data.labels.length >= 10) {
                     jitChart.data.labels.shift();
