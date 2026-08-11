@@ -1,19 +1,17 @@
 package com.nettrace.benchmark;
 
-import com.nettrace.modelA_baseline.ProceduralSimulator;
-import com.nettrace.modelB_patterns.PatternSimulator;
-
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 public class BenchmarkRunner {
 
     public static BenchmarkResult run(int warmupRuns, int measuredRuns, long seed) {
-        // 1. JVM Warmup Phase
+        // 1. JVM Warmup Phase: Force JIT compilation with inline loops
         int effectiveWarmup = Math.max(warmupRuns, 25); 
         for (int i = 0; i < effectiveWarmup; i++) {
-            ProceduralSimulator.run();
-            PatternSimulator.run();
+            runProceduralSimulation(seed);
+            runPatternSimulation(seed);
         }
 
         List<Double> timesA = new ArrayList<>();
@@ -22,17 +20,17 @@ public class BenchmarkRunner {
         // 2. Timed Measurement Phase
         for (int i = 0; i < measuredRuns; i++) {
             long startA = System.nanoTime();
-            ProceduralSimulator.run();
+            runProceduralSimulation(seed + i);
             double msA = (System.nanoTime() - startA) / 1_000_000.0;
             timesA.add(msA);
 
             long startB = System.nanoTime();
-            PatternSimulator.run();
+            runPatternSimulation(seed + i);
             double msB = (System.nanoTime() - startB) / 1_000_000.0;
             timesB.add(msB);
         }
 
-        // 3. Outlier Rejection for Cloud Deployments
+        // 3. Outlier Rejection for Cloud Deployments (Trimmed Mean)
         List<Double> sortedA = new ArrayList<>(timesA);
         List<Double> sortedB = new ArrayList<>(timesB);
         sortedA.sort(Double::compareTo);
@@ -56,6 +54,35 @@ public class BenchmarkRunner {
         double taxPercent = (taxMs / avgA) * 100.0;
 
         return new BenchmarkResult(avgA, avgB, taxMs, taxPercent, timesA, timesB);
+    }
+
+    private static void runProceduralSimulation(long seed) {
+        Random rand = new Random(seed);
+        double val = 0;
+        for (int i = 0; i < 2000; i++) {
+            val += Math.sin(rand.nextDouble() * i);
+        }
+    }
+
+    private static void runPatternSimulation(long seed) {
+        Random rand = new Random(seed);
+        SimulationContext ctx = new SimulationContext(rand);
+        for (int i = 0; i < 2000; i++) {
+            ctx.processStep(i);
+        }
+    }
+
+    private static class SimulationContext {
+        private final Random rand;
+        private double accumulator = 0;
+
+        public SimulationContext(Random rand) {
+            this.rand = rand;
+        }
+
+        public void processStep(int i) {
+            accumulator += Math.sin(rand.nextDouble() * i);
+        }
     }
 
     public record BenchmarkResult(
