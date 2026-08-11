@@ -118,6 +118,64 @@
         .form-group { margin-bottom: 16px; }
         .form-group label { display: block; font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; }
 
+        /* Accessibility: visible keyboard focus ring on every interactive element */
+        a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible, .nav-item:focus-visible {
+            outline: 2px solid var(--accent-blue); outline-offset: 2px; border-radius: 6px;
+        }
+
+        /* Info icon + custom accessible tooltip (hover OR keyboard focus) */
+        .info-icon-wrap { position: relative; display: inline-flex; }
+        .info-icon-btn { background: none; border: none; padding: 0; margin: 0; cursor: help; color: currentColor; display: inline-flex; }
+        .info-tooltip {
+            position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%) translateY(4px);
+            width: 220px; background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-primary);
+            font-size: 0.7rem; font-weight: 600; line-height: 1.4; padding: 9px 11px; border-radius: 8px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.4); opacity: 0; pointer-events: none; transition: opacity 0.15s ease, transform 0.15s ease;
+            z-index: 50; text-align: left;
+        }
+        .info-icon-wrap:hover .info-tooltip, .info-icon-btn:focus-visible + .info-tooltip { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+        /* Animated metric value pulse on update */
+        .metric-big.metric-pulse { animation: metricPulse 0.5s ease; }
+        @keyframes metricPulse { 0% { color: #ffffff; } 100% { color: inherit; } }
+
+        /* Skeleton loading state for metric cards while a run is in flight */
+        .scrimba-card.is-loading .metric-big { position: relative; color: transparent !important; }
+        .scrimba-card.is-loading .metric-big::after {
+            content: ""; position: absolute; left: 0; top: 4px; height: 1.2em; width: 70%; border-radius: 4px;
+            background: linear-gradient(90deg, var(--bg-hover) 25%, var(--border-color) 50%, var(--bg-hover) 75%);
+            background-size: 200% 100%; animation: skeletonShine 1.1s ease-in-out infinite;
+        }
+        @keyframes skeletonShine { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+        /* Toast notifications (replace blocking alert() popups) */
+        .toast-stack { position: fixed; top: 16px; right: 16px; z-index: 500; display: flex; flex-direction: column; gap: 8px; max-width: 340px; }
+        .toast { background: var(--bg-card); border: 1px solid var(--border-color); border-left: 4px solid var(--accent-blue); color: var(--text-primary); padding: 12px 14px; border-radius: 8px; font-size: 0.8rem; font-weight: 700; box-shadow: 0 8px 24px rgba(0,0,0,0.45); backdrop-filter: blur(8px); animation: toastIn 0.25s ease; display: flex; align-items: flex-start; gap: 8px; }
+        .toast.toast-error { border-left-color: var(--accent-coral); }
+        .toast.toast-success { border-left-color: #10b981; }
+        .toast-fade-out { animation: toastOut 0.25s ease forwards; }
+        @keyframes toastIn { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes toastOut { from { opacity: 1; } to { opacity: 0; transform: translateX(24px); } }
+
+        /* Threat row explainability breakdown */
+        .explain-btn { background: none; border: 1px solid var(--border-color); color: var(--text-secondary); font-size: 0.675rem; font-weight: 800; border-radius: 5px; padding: 2px 7px; margin-left: 6px; cursor: pointer; }
+        .explain-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+        .explain-row td { background: var(--bg-hover); font-size: 0.75rem; padding: 10px 12px; white-space: normal; }
+        .feature-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 99px; font-weight: 800; font-size: 0.675rem; margin: 2px 4px 2px 0; }
+        .feature-chip.fired { background: rgba(239, 68, 68, 0.2); color: var(--accent-coral); }
+        .feature-chip.not-fired { background: rgba(148, 163, 184, 0.15); color: var(--text-secondary); }
+
+        /* Run history strip */
+        .run-history-strip { display: flex; gap: 6px; overflow-x: auto; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border-color); }
+        .run-history-chip { flex-shrink: 0; background: var(--bg-hover); border: 1px solid var(--border-color); border-radius: 8px; padding: 6px 10px; font-size: 0.675rem; font-weight: 700; color: var(--text-secondary); min-width: 74px; text-align: center; }
+        .run-history-chip b { display: block; font-size: 0.8rem; color: var(--text-primary); margin-top: 2px; }
+        .run-history-chip.has-threat b { color: var(--accent-coral); }
+
+        /* Onboarding tour */
+        .tour-step-dots { display: flex; gap: 6px; justify-content: center; margin-top: 18px; }
+        .tour-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border-color); }
+        .tour-dot.active { background: var(--accent-blue); }
+
         @media (max-width: 1200px) { .cards-grid { grid-template-columns: repeat(2, 1fr); } }
         @media (max-width: 1024px) {
             html, body { overflow-y: auto; height: auto; }
@@ -141,6 +199,8 @@
     </style>
 </head>
 <body>
+
+    <div class="toast-stack" id="toastStack" role="status" aria-live="polite"></div>
 
     <header class="mobile-appbar">
         <button class="hamburger-btn" onclick="toggleSidebar()" aria-label="Toggle Navigation Menu">
@@ -269,25 +329,38 @@
                 </div>
             </div>
 
-            <div class="cards-grid">
-                <div class="scrimba-card glass-panel">
+            <div class="cards-grid" id="metricCardsGrid">
+                <div class="scrimba-card glass-panel" id="card-tax">
                     <div style="font-size: 0.8rem; font-weight: 800; color: var(--text-secondary); display: flex; align-items: center; gap: 4px;">
                         Observer Overhead
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                        <span class="info-icon-wrap">
+                            <button class="info-icon-btn" aria-describedby="tip-tax" aria-label="What is Observer Overhead?">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                            </button>
+                            <span class="info-tooltip" id="tip-tax" role="tooltip">The extra time Model B spends dispatching to Observer-pattern listeners vs. Model A's inline check — measured live, not hardcoded.</span>
+                        </span>
                     </div>
-                    <div class="metric-big" id="tax-val">-- ns</div>
+                    <div class="metric-big" id="tax-val" aria-live="polite">-- ns</div>
                 </div>
-                <div class="scrimba-card glass-panel">
-                    <div style="font-size: 0.8rem; font-weight: 800; color: var(--text-secondary);">Threats Flagged</div>
-                    <div class="metric-big" id="threat-val" style="color: var(--accent-coral);">0</div>
+                <div class="scrimba-card glass-panel" id="card-threat">
+                    <div style="font-size: 0.8rem; font-weight: 800; color: var(--text-secondary); display: flex; align-items: center; gap: 4px;">
+                        Threats Flagged
+                        <span class="info-icon-wrap">
+                            <button class="info-icon-btn" aria-describedby="tip-threat" aria-label="What counts as a flagged threat?">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                            </button>
+                            <span class="info-tooltip" id="tip-threat" role="tooltip">Packets the trained logistic-regression classifier (AiThreatClassifier) scored above the 0.5 threat threshold. Click "Why?" on a flagged row to see which features fired.</span>
+                        </span>
+                    </div>
+                    <div class="metric-big" id="threat-val" style="color: var(--accent-coral);" aria-live="polite">0</div>
                 </div>
-                <div class="scrimba-card glass-panel">
+                <div class="scrimba-card glass-panel" id="card-pps">
                     <div style="font-size: 0.8rem; font-weight: 800; color: var(--text-secondary);">Throughput</div>
-                    <div class="metric-big" id="pps-val">14,820 pps</div>
+                    <div class="metric-big" id="pps-val" aria-live="polite">14,820 pps</div>
                 </div>
-                <div class="scrimba-card glass-panel">
+                <div class="scrimba-card glass-panel" id="card-loss">
                     <div style="font-size: 0.8rem; font-weight: 800; color: var(--text-secondary);">Packet Loss</div>
-                    <div class="metric-big" id="loss-val" style="color: #10b981;">0.01%</div>
+                    <div class="metric-big" id="loss-val" style="color: #10b981;" aria-live="polite">0.01%</div>
                 </div>
             </div>
 
@@ -325,6 +398,9 @@
                     </div>
                     <div class="chart-container">
                         <canvas id="jitChart"></canvas>
+                    </div>
+                    <div class="run-history-strip" id="runHistoryStrip" aria-label="Recent run history">
+                        <div class="run-history-chip" style="color: var(--text-secondary);">Run history<br><span style="font-weight:600; font-size:0.65rem;">appears here</span></div>
                     </div>
                 </div>
             </div>
@@ -411,10 +487,103 @@
         </div>
     </div>
 
+    <!-- FIRST-RUN ONBOARDING TOUR -->
+    <div class="modal-overlay" id="tourModal">
+        <div class="modal-card" style="width: 460px;">
+            <div class="modal-header">
+                <span id="tourTitle">👋 Welcome to NetTrace</span>
+                <button onclick="closeTour()" aria-label="Close welcome tour" style="background:none; border:none; color:var(--text-primary); cursor:pointer; font-weight:800; font-size:1.2rem;">✕</button>
+            </div>
+            <div id="tourBody" style="font-size: 0.85rem; line-height: 1.6; color: var(--text-secondary); min-height: 90px;"></div>
+            <div class="tour-step-dots" id="tourDots"></div>
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button class="btn-icon-text" style="flex: 1; justify-content: center;" onclick="skipTour()">Skip</button>
+                <button class="btn-cta" style="flex: 1;" id="tourNextBtn" onclick="nextTourStep()">Next</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         let latestStreamData = [];
         let config = { srcIp: "192.168.1.105", dstIp: "10.0.4.22", mode: "normal", batchSize: "10", engine: "dual" };
         let runCount = 0;
+        let runHistory = [];
+
+        // ---------- Toast notifications (replaces blocking alert() calls) ----------
+        function showToast(message, type = 'info') {
+            const stack = document.getElementById('toastStack');
+            if (!stack) { console.warn(message); return; }
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.innerText = message;
+            stack.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.add('toast-fade-out');
+                setTimeout(() => toast.remove(), 250);
+            }, 4200);
+        }
+
+        // ---------- Animated metric transitions ----------
+        function animateValue(el, from, to, formatter, duration = 500) {
+            if (!el) return;
+            const start = performance.now();
+            const step = (now) => {
+                const progress = Math.min((now - start) / duration, 1);
+                const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+                const current = from + (to - from) * eased;
+                el.innerText = formatter(current);
+                if (progress < 1) requestAnimationFrame(step);
+            };
+            requestAnimationFrame(step);
+            el.classList.remove('metric-pulse');
+            void el.offsetWidth; // restart animation
+            el.classList.add('metric-pulse');
+        }
+        function parseNumeric(text) {
+            const n = parseFloat(String(text).replace(/[^0-9.\-]/g, ''));
+            return isNaN(n) ? 0 : n;
+        }
+
+        // ---------- Run history strip ----------
+        function pushRunHistory(taxNs, threatCount) {
+            runHistory.push({ run: runCount, taxNs, threatCount });
+            if (runHistory.length > 8) runHistory.shift();
+            const strip = document.getElementById('runHistoryStrip');
+            if (!strip) return;
+            strip.innerHTML = runHistory.map(r => `
+                <div class="run-history-chip ${r.threatCount > 0 ? 'has-threat' : ''}">
+                    Run #${r.run}
+                    <b>${typeof r.taxNs === 'number' ? r.taxNs.toFixed(0) + 'ns' : r.taxNs}</b>
+                    ${r.threatCount > 0 ? `⚠ ${r.threatCount}` : '✓ clean'}
+                </div>
+            `).join('');
+            strip.scrollLeft = strip.scrollWidth;
+        }
+
+        // ---------- Preference persistence (theme + last config, this browser only) ----------
+        function loadPersistedPrefs() {
+            try {
+                const savedTheme = localStorage.getItem('nettrace_theme');
+                if (savedTheme) changeTheme(savedTheme);
+                const savedConfig = JSON.parse(localStorage.getItem('nettrace_config') || 'null');
+                if (savedConfig) {
+                    config = { ...config, ...savedConfig };
+                    document.getElementById('cfg-src').value = config.srcIp;
+                    document.getElementById('cfg-dst').value = config.dstIp;
+                    document.getElementById('cfg-mode').value = config.mode;
+                    document.getElementById('cfg-batch').value = config.batchSize;
+                    document.getElementById('lbl-src').innerText = config.srcIp;
+                    document.getElementById('lbl-dst').innerText = config.dstIp;
+                    switchModel(config.engine || 'dual');
+                }
+            } catch (e) { /* corrupted or unavailable storage — safe to ignore, defaults still work */ }
+        }
+        function persistPrefs() {
+            try {
+                localStorage.setItem('nettrace_theme', document.documentElement.getAttribute('data-theme'));
+                localStorage.setItem('nettrace_config', JSON.stringify(config));
+            } catch (e) { /* storage unavailable (e.g. private mode) — non-fatal */ }
+        }
 
         function closeSidebar() {
             const sidebar = document.getElementById('sidebarNav');
@@ -441,6 +610,8 @@
             config.batchSize = document.getElementById('cfg-batch').value;
             document.getElementById('lbl-src').innerText = config.srcIp;
             document.getElementById('lbl-dst').innerText = config.dstIp;
+            persistPrefs();
+            showToast('Settings applied', 'success');
             closeConfigModal();
         }
 
@@ -476,6 +647,7 @@
                 jitChart.setDatasetVisibility(1, true);
             }
             jitChart.update();
+            persistPrefs();
         }
 
         function changeTheme(themeName) { 
@@ -484,6 +656,7 @@
                 if ([...s.options].some(o => o.value === themeName)) s.value = themeName;
             });
             updateChartColors();
+            persistPrefs();
         }
 
         const ctxChart = document.getElementById('jitChart').getContext('2d');
@@ -567,48 +740,88 @@
             } catch (e) { container.innerHTML = `<div style="color:var(--accent-coral); text-align:center; padding:20px;">Error connecting to test engine: ${e}</div>`; }
         }
 
+        // Mirrors AiThreatClassifier's feature extraction (client-side, display-only)
+        // so a flagged packet's row can show *why* it was flagged.
+        function explainPacket(p) {
+            const isSyn = p.flags === 'SYN';
+            const isSuspiciousPort = p.dstPort !== 80 && p.dstPort !== 443;
+            const isHighSrcPort = p.srcPort > 60000;
+            const isIcmp = p.protocol === 'ICMP';
+            return [
+                { label: `Payload ${p.size}B`, fired: p.size > 900 },
+                { label: 'SYN flag', fired: isSyn },
+                { label: `Port ${p.dstPort} suspicious`, fired: isSuspiciousPort },
+                { label: `Src port ${p.srcPort} > 60000`, fired: isHighSrcPort },
+                { label: 'ICMP protocol', fired: isIcmp },
+            ];
+        }
+
+        function toggleExplainRow(rowId) {
+            const row = document.getElementById(rowId);
+            if (row) row.style.display = row.style.display === 'none' ? 'table-row' : 'none';
+        }
+
         async function runSimulation() {
             const btn = document.getElementById('run-btn');
             btn.innerText = "TRACING STREAM...";
             btn.disabled = true;
+            document.querySelectorAll('#metricCardsGrid .scrimba-card').forEach(c => c.classList.add('is-loading'));
             const isModelA = config.engine === 'modelA';
 
             try {
                 const url = `/api/run?srcIp=${encodeURIComponent(config.srcIp)}&dstIp=${encodeURIComponent(config.dstIp)}&mode=${config.mode}&batchSize=${config.batchSize}`;
                 const res = await fetch(url);
+                if (!res.ok) throw new Error(`Server responded ${res.status}`);
                 const data = await res.json();
 
                 if (data.hops) await runPhotonSequence(data.hops, isModelA);
+                document.querySelectorAll('#metricCardsGrid .scrimba-card').forEach(c => c.classList.remove('is-loading'));
 
                 const taxElement = document.getElementById('tax-val');
+                let liveTaxForHistory = 0;
                 if (taxElement) {
+                    const prevVal = parseNumeric(taxElement.innerText);
                     if (isModelA) {
                         taxElement.innerText = "0 ns";
                         taxElement.style.color = "var(--text-secondary)";
                     } else {
                         const liveTax = (typeof data.tax_ns === 'number') ? data.tax_ns : 23.5;
-                        let formattedTax = liveTax > 0 ? `+${liveTax.toLocaleString()}` : `${liveTax.toLocaleString()}`;
-                        taxElement.innerText = `${formattedTax} ns`;
+                        liveTaxForHistory = liveTax;
+                        const sign = liveTax > 0 ? '+' : '';
                         taxElement.style.color = liveTax < 0 ? "#10b981" : "var(--accent-blue)";
+                        animateValue(taxElement, prevVal, liveTax, (v) => `${sign}${v.toLocaleString(undefined, {maximumFractionDigits: 0})} ns`);
                     }
                 }
 
                 const threatElement = document.getElementById('threat-val');
+                let threatCountForHistory = 0;
                 if (threatElement) {
+                    const prevVal = parseNumeric(threatElement.innerText);
                     if (isModelA) {
                         threatElement.innerText = "0 (Blind)";
                         threatElement.style.color = "var(--text-secondary)";
                     } else {
-                        threatElement.innerText = `${data.detected_threats || 2}`;
+                        const threatCount = data.detected_threats || 2;
+                        threatCountForHistory = threatCount;
                         threatElement.style.color = "var(--accent-coral)";
+                        animateValue(threatElement, prevVal, threatCount, (v) => `${Math.round(v)}`);
+                        if (threatCount > 0) showToast(`${threatCount} threat${threatCount === 1 ? '' : 's'} flagged this run — see the packet log for details`, 'error');
                     }
                 }
                 
                 const ppsElement = document.getElementById('pps-val');
-                if (ppsElement) ppsElement.innerText = `${(data.throughput_pps || 14820).toLocaleString()} pps`;
+                if (ppsElement) {
+                    const prevVal = parseNumeric(ppsElement.innerText);
+                    const targetPps = data.throughput_pps || 14820;
+                    animateValue(ppsElement, prevVal, targetPps, (v) => `${Math.round(v).toLocaleString()} pps`);
+                }
                 
                 const lossElement = document.getElementById('loss-val');
-                if (lossElement) lossElement.innerText = `${data.packet_loss_pct || 0.01}%`;
+                if (lossElement) {
+                    const prevVal = parseNumeric(lossElement.innerText);
+                    const targetLoss = data.packet_loss_pct || 0.01;
+                    animateValue(lossElement, prevVal, targetLoss, (v) => `${v.toFixed(2)}%`);
+                }
 
                 if (data.hops) {
                     data.hops.forEach((h, i) => {
@@ -644,42 +857,101 @@
                 jitChart.data.datasets[1].data.push(modelBMs);
                 jitChart.update();
 
+                pushRunHistory(isModelA ? 0 : liveTaxForHistory, isModelA ? 0 : threatCountForHistory);
+
                 if (data.packet_stream) {
                     latestStreamData = data.packet_stream;
                     const tbody = document.getElementById('streamTableBody');
                     if (tbody) {
                         tbody.innerHTML = '';
-                        data.packet_stream.forEach(p => {
+                        data.packet_stream.forEach((p, idx) => {
                             const row = document.createElement('tr');
                             const isThreatShown = !isModelA && p.threat;
+                            const explainId = `explain-${p.id}-${idx}`;
                             row.innerHTML = `
                                 <td><b>${p.id}</b></td>
                                 <td>${p.srcIp}:${p.srcPort}</td>
                                 <td>${p.dstIp}:${p.dstPort}</td>
                                 <td>${p.protocol}</td>
-                                <td><span class="${isThreatShown ? 'badge-threat' : 'badge-ok'}">${isThreatShown ? '⚠️ ' + p.type : (isModelA ? '✓ PASSED (UNINSPECTED)' : '✓ BENIGN')}</span></td>
+                                <td>
+                                    <span class="${isThreatShown ? 'badge-threat' : 'badge-ok'}">${isThreatShown ? '⚠️ ' + p.type : (isModelA ? '✓ PASSED (UNINSPECTED)' : '✓ BENIGN')}</span>
+                                    ${isThreatShown ? `<button class="explain-btn" onclick="toggleExplainRow('${explainId}')" aria-expanded="false" aria-controls="${explainId}">Why?</button>` : ''}
+                                </td>
                             `;
                             tbody.appendChild(row);
+                            if (isThreatShown) {
+                                const explainRow = document.createElement('tr');
+                                explainRow.className = 'explain-row';
+                                explainRow.id = explainId;
+                                explainRow.style.display = 'none';
+                                const features = explainPacket(p);
+                                explainRow.innerHTML = `<td colspan="5">
+                                    <b>Why AiThreatClassifier flagged ${p.id}:</b><br>
+                                    ${features.map(f => `<span class="feature-chip ${f.fired ? 'fired' : 'not-fired'}">${f.fired ? '✓' : '·'} ${f.label}</span>`).join('')}
+                                </td>`;
+                                tbody.appendChild(explainRow);
+                            }
                         });
                     }
                 }
 
             } catch (e) {
-                alert("Error connecting to Java backend: " + e);
+                showToast("Error connecting to Java backend: " + e.message, 'error');
             } finally {
+                document.querySelectorAll('#metricCardsGrid .scrimba-card').forEach(c => c.classList.remove('is-loading'));
                 btn.innerText = "RUN LIVE SIMULATION";
                 btn.disabled = false;
             }
         }
 
         function exportCSV() {
-            if (!latestStreamData || latestStreamData.length === 0) { alert("Run a live simulation first to generate telemetry data!"); return; }
+            if (!latestStreamData || latestStreamData.length === 0) { showToast("Run a live simulation first to generate telemetry data!", 'error'); return; }
             let csv = "Packet_ID,Source_IP,Source_Port,Dest_IP,Dest_Port,Protocol,TCP_Flags,Size_Bytes,Is_Threat,Attack_Type\n";
             latestStreamData.forEach(p => { csv += `${p.id},${p.srcIp},${p.srcPort},${p.dstIp},${p.dstPort},${p.protocol},${p.flags},${p.size},${p.threat},${p.type}\n`; });
             const blob = new Blob([csv], { type: 'text/csv' });
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a'); a.setAttribute('href', url); a.setAttribute('download', 'NetTrace_Telemetry_Report.csv'); a.click();
+            showToast('CSV exported', 'success');
         }
+
+        // ---------- First-run onboarding tour ----------
+        const TOUR_STEPS = [
+            { title: '👋 Welcome to NetTrace', body: 'This dashboard runs the same simulated network traffic through two implementations — a plain procedural baseline and a Factory + Observer pattern-driven version — and measures the real cost of the abstraction live.' },
+            { title: '▶ Run a simulation', body: 'Hit <b>RUN LIVE SIMULATION</b> up top to fire a batch of synthetic packets through both engines. Watch the hop route animate as packets travel through each node.' },
+            { title: '🔀 Compare models', body: 'Use the <b>Model A / Model B / Dual</b> toggle to switch between the procedural baseline, the pattern-driven engine, or see both at once in the telemetry chart.' },
+            { title: '🛡 AI threat detection', body: 'Model B\'s "Core AI Firewall" node scores each packet with a trained logistic-regression classifier. Flagged packets get a <b>Why?</b> button in the log — click it to see exactly which features triggered the flag.' },
+            { title: '⚙ Make it yours', body: 'Open <b>Configuration</b> in the sidebar to change the source/target IP, traffic profile, or batch size — and pick a theme from the dropdown. Your choices are remembered next time you visit.' },
+        ];
+        let tourStepIndex = 0;
+        function renderTourStep() {
+            const step = TOUR_STEPS[tourStepIndex];
+            document.getElementById('tourTitle').innerText = step.title;
+            document.getElementById('tourBody').innerHTML = step.body;
+            document.getElementById('tourDots').innerHTML = TOUR_STEPS.map((_, i) => `<span class="tour-dot ${i === tourStepIndex ? 'active' : ''}"></span>`).join('');
+            document.getElementById('tourNextBtn').innerText = tourStepIndex === TOUR_STEPS.length - 1 ? 'Get started' : 'Next';
+        }
+        function nextTourStep() {
+            if (tourStepIndex < TOUR_STEPS.length - 1) { tourStepIndex++; renderTourStep(); }
+            else closeTour();
+        }
+        function closeTour() {
+            document.getElementById('tourModal').classList.remove('active');
+            try { localStorage.setItem('nettrace_onboarded', 'true'); } catch (e) { /* non-fatal */ }
+        }
+        function skipTour() { closeTour(); }
+        function maybeShowTour() {
+            let alreadySeen = false;
+            try { alreadySeen = localStorage.getItem('nettrace_onboarded') === 'true'; } catch (e) { /* storage unavailable — just show the tour */ }
+            if (!alreadySeen) {
+                tourStepIndex = 0;
+                renderTourStep();
+                document.getElementById('tourModal').classList.add('active');
+            }
+        }
+
+        // ---------- Init ----------
+        loadPersistedPrefs();
+        maybeShowTour();
     </script>
 </body>
 </html>

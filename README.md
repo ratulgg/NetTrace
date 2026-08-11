@@ -332,48 +332,50 @@ doesn't skew the reported average.
 > result rather than a number you can currently regenerate with a single
 > documented command.
 
-## Ideas for UI/UX enhancements
+## UI/UX enhancements
 
-The dashboard (`src/main/resources/index.html`) already has a glass-panel
-theme, light/dark switcher, and a live topology view. Some ideas for
-taking it further, roughly in order of effort:
+These are implemented in `src/main/resources/index.html` (no backend
+changes needed):
 
-**Low effort**
-- Animate the metric cards (`tax-val`, `threat-val`, `pps-val`, `loss-val`)
-  with a count-up/count-down transition instead of snapping to the new
-  number, so live updates feel less jumpy.
-- Add a tooltip or small "?" info icon next to "abstraction tax" and the
-  threat count explaining what they mean and how they're computed — new
-  visitors currently have to read this README to know.
-- Add a visible loading/skeleton state on `#run-btn` while `/api/run` is
-  in flight, and disable the button to prevent double-submits.
-- Surface toast notifications for errors (e.g. a failed `/api/run` call)
-  instead of failing silently.
+- **Animated metric transitions** — `tax-val`, `threat-val`, `pps-val`,
+  and `loss-val` ease from their old value to the new one on every run
+  instead of snapping, via a small `requestAnimationFrame`-based
+  `animateValue()` helper.
+- **Accessible tooltips** — a "?" info icon next to "Observer Overhead"
+  and "Threats Flagged" opens a tooltip on hover *or* keyboard focus
+  (`aria-describedby` + `role="tooltip"`) explaining what the metric
+  means, so visitors don't have to read this README to understand them.
+- **Loading skeletons** — the four metric cards show a shimmering
+  skeleton placeholder while `/api/run` is in flight, and `#run-btn`
+  is disabled during the request to prevent double-submits.
+- **Toast notifications** — connection errors and CSV-export failures
+  now surface as dismissible toasts (top-right) instead of a blocking
+  `alert()` popup.
+- **Threat explainability** — flagged packets get a "Why?" button that
+  expands a row showing which of the classifier's 5 features fired
+  (payload size, SYN flag, suspicious port, high source port, ICMP),
+  mirroring `AiThreatClassifier`'s own feature extraction client-side.
+- **Run history strip** — a scrollable strip under the telemetry chart
+  shows the abstraction tax and threat count for the last 8 runs at a
+  glance, in addition to the existing 10-run line chart.
+- **Accessibility** — `aria-live="polite"` on the metric cards so
+  screen readers announce updates, visible `:focus-visible` outlines on
+  every interactive element, and `aria-label`s on icon-only buttons.
+- **Preference persistence** — theme and last-used source/target IP,
+  traffic mode, batch size, and model selection are saved to
+  `localStorage` and restored on the next visit.
+- **First-run onboarding tour** — a 5-step guided walkthrough (what
+  Model A/B are, how to run a simulation, how the AI firewall works,
+  where Configuration lives) shows once for new visitors, dismissible
+  and remembered via `localStorage`.
 
-**Medium effort**
-- Show *why* a packet was flagged as a threat — e.g. a small breakdown of
-  which of the 5 features fired (SYN flag, suspicious port, etc.) next to
-  each row in the packet log table, so the AI classifier's output is
-  explainable rather than just a yes/no badge.
-- Add a run history / sparkline so users can see how the abstraction tax
-  has trended over their last N runs, not just the latest one.
-- Make the 5-hop topology view interactive — clicking a hop node could
-  show that node's queue depth over time, or its drop reason, instead of
-  only the current-state meter.
-- Improve keyboard/screen-reader accessibility: `aria-live` regions for
-  the metric cards so updates are announced, focus states on the model
-  toggle pills, and `aria-label`s on icon-only buttons.
-
-**Higher effort**
-- Replace the polling-style "click to run" flow with a streaming view
+**Still just an idea (not implemented — needs backend changes):**
+- Replacing the polling-style "click to run" flow with a streaming view
   (Server-Sent Events or WebSocket) so packets animate through the
-  topology in real time instead of the dashboard jumping straight to a
-  finished result.
-- Add a side-by-side "diff" view for Model A vs Model B that highlights
-  where in the pipeline the latency actually diverges, rather than only
-  showing the final aggregate tax.
-- Persist user preferences (theme, last-used `srcIp`/`dstIp`, model
-  selection) so the dashboard remembers state across reloads.
-- A guided "first run" walkthrough/tour for first-time visitors, since
-  the dashboard currently assumes the user already understands what
-  Model A/B and the abstraction tax are.
+  topology as they're generated, rather than the dashboard receiving one
+  finished JSON payload per click. This needs `NetTraceServer` to support
+  a streaming endpoint, not just a client-side change.
+- A side-by-side "diff" view pinpointing exactly where in the 5-hop
+  pipeline Model A and Model B's latency diverges, rather than only the
+  final aggregate tax — would need per-hop timing broken out by model in
+  the `/api/run` response.
