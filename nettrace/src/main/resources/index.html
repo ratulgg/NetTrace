@@ -600,7 +600,7 @@
             <div class="cards-grid">
                 <div class="scrimba-card glass-panel">
                     <div style="font-size: 0.8rem; font-weight: 800; color: var(--text-secondary);">Observer Overhead</div>
-                    <div class="metric-big" id="tax-val">+23.5 ns</div>
+                    <div class="metric-big" id="tax-val">-- ns</div>
                 </div>
                 <div class="scrimba-card glass-panel">
                     <div style="font-size: 0.8rem; font-weight: 800; color: var(--text-secondary);">Threats Flagged</div>
@@ -774,7 +774,7 @@
                 btnB.className = 'model-pill-btn active-model-b';
                 if (node2) node2.classList.remove('bypassed');
                 if (node2Title) node2Title.innerText = "Core AI Firewall";
-                document.getElementById('tax-val').innerText = "+23.5 ns";
+                document.getElementById('tax-val').innerText = "-- ns";
                 document.getElementById('threat-val').style.color = "var(--accent-coral)";
 
                 // Hide Model A (Green), Show Model B (Blue)
@@ -784,7 +784,7 @@
                 btnDual.className = 'model-pill-btn active-model-dual';
                 if (node2) node2.classList.remove('bypassed');
                 if (node2Title) node2Title.innerText = "Core AI Firewall";
-                document.getElementById('tax-val').innerText = "+23.5 ns (AI)";
+                document.getElementById('tax-val').innerText = "-- ns";
                 document.getElementById('threat-val').style.color = "var(--accent-coral)";
 
                 // Show Both Datasets
@@ -993,7 +993,7 @@
                     document.getElementById('tax-val').innerText = "0 ns";
                     document.getElementById('threat-val').innerText = "0 (Blind)";
                 } else if (config.engine === 'dual') {
-                    document.getElementById('tax-val').innerText = "+23.5 ns (AI)";
+                    document.getElementById('tax-val').innerText = `+${data.tax_ns} ns (AI)`;
                     document.getElementById('threat-val').innerText = `${data.detected_threats}`;
                 } else {
                     document.getElementById('tax-val').innerText = `+${data.tax_ns} ns`;

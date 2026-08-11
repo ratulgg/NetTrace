@@ -1,5 +1,7 @@
 package com.nettrace;
 
+import com.nettrace.benchmark.BenchmarkRunner;
+
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
@@ -143,6 +145,14 @@ static class ApiTestsHandler implements HttpHandler {
         private final TopologyEngine topology = new TopologyEngine();
         private final SyntheticPacketStream streamGen = new SyntheticPacketStream();
 
+        // Live per-request benchmark sizing. Smaller than the offline 10+50
+        // CLI run (see BenchmarkRunner.main) so a browser request still comes
+        // back quickly, but every number below is measured on this request,
+        // not replayed from a prior offline run.
+        private static final int LIVE_WARMUP_RUNS = 5;
+        private static final int LIVE_BENCHMARK_RUNS = 15;
+        private static final long LIVE_BENCHMARK_SEED = 42;
+
         @Override
         public void handle(HttpExchange exchange) throws IOException {
             exchange.getResponseHeaders().set("Access-Control-Allow-Origin", "*");
@@ -164,15 +174,29 @@ static class ApiTestsHandler implements HttpHandler {
 
             long threatsCount = streamBatch.stream().filter(p -> p.isThreat).count();
 
+            // Actually execute Model A vs Model B right now and measure the
+            // real difference -- this used to be hardcoded literals from a
+            // one-time offline run.
+            BenchmarkRunner.BenchmarkResult benchmark =
+                    BenchmarkRunner.run(LIVE_WARMUP_RUNS, LIVE_BENCHMARK_RUNS, LIVE_BENCHMARK_SEED);
+
+            double taxNs = benchmark.taxMs() * 1_000_000.0;
+            double taxPercent = benchmark.taxPercent();
+
             StringBuilder json = new StringBuilder();
             json.append("{");
-            json.append("\"tax_ns\": 23.5,");
-            json.append("\"tax_percent\": 2.30,");
+            json.append(String.format("\"tax_ns\": %.1f,", taxNs));
+            json.append(String.format("\"tax_percent\": %.2f,", taxPercent));
             json.append(String.format("\"detected_threats\": %d,", threatsCount));
+            // NOTE: throughput_pps / packet_loss_pct remain illustrative,
+            // mode-dependent display figures for the topology/queue
+            // visualization panel (they are not part of the Model A vs
+            // Model B "abstraction tax" claim above, which is now measured
+            // live on every request).
             json.append(String.format("\"throughput_pps\": %d,", attackMode ? 48500 : 14820));
             json.append(String.format("\"packet_loss_pct\": %.2f,", attackMode ? 3.42 : 0.01));
-            json.append("\"model_a_passes\": [44.46, 20.10, 12.18, 8.20, 6.12, 4.35, 4.32, 4.31, 4.31, 4.313],");
-            json.append("\"model_b_passes\": [52.76, 24.50, 14.12, 9.80, 6.89, 4.48, 4.42, 4.41, 4.41, 4.412],");
+            json.append(String.format("\"model_a_passes\": %s,", toJsonArray(lastN(benchmark.modelATimesMs, 10))));
+            json.append(String.format("\"model_b_passes\": %s,", toJsonArray(lastN(benchmark.modelBTimesMs, 10))));
 
             // Multi-Hop Path Payload with Packet Queue Telemetry
             json.append("\"hops\": [");
@@ -211,6 +235,21 @@ static class ApiTestsHandler implements HttpHandler {
                 if (pair.length > 1) map.put(pair[0], pair[1]);
             }
             return map;
+        }
+
+        private List<Double> lastN(List<Double> values, int n) {
+            if (values.size() <= n) return values;
+            return values.subList(values.size() - n, values.size());
+        }
+
+        private String toJsonArray(List<Double> values) {
+            StringBuilder sb = new StringBuilder("[");
+            for (int i = 0; i < values.size(); i++) {
+                sb.append(String.format("%.3f", values.get(i)));
+                if (i < values.size() - 1) sb.append(",");
+            }
+            sb.append("]");
+            return sb.toString();
         }
     }
 

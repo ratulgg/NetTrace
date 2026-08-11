@@ -9,23 +9,52 @@ import java.util.Random;
 public class ProceduralSimulator {
 
     private static final int PACKET_COUNT = 10_000;
-    private static final Random random = new Random(42); // Fixed seed for reproducible benchmarks
+    private static final long DEFAULT_SEED = 42; // Fixed seed for reproducible benchmarks
 
-    public static void main(String[] args) {
-        System.out.println("==================================================");
-        System.out.println("  STARTING MODEL A: PROCEDURAL BASELINE SIMULATION ");
-        System.out.println("==================================================");
+    /**
+     * Outcome of a single simulation pass. Deliberately carries only counts and
+     * timing -- no console output happens while a pass is being timed.
+     */
+    public static class Result {
+        public final int processedTcp;
+        public final int processedUdp;
+        public final int processedIcmp;
+        public final int droppedPackets;
+        public final double durationMs;
 
-        long startTime = System.nanoTime();
+        public Result(int processedTcp, int processedUdp, int processedIcmp, int droppedPackets, double durationMs) {
+            this.processedTcp = processedTcp;
+            this.processedUdp = processedUdp;
+            this.processedIcmp = processedIcmp;
+            this.droppedPackets = droppedPackets;
+            this.durationMs = durationMs;
+        }
+
+        public int getTotalProcessed() {
+            return processedTcp + processedUdp + processedIcmp;
+        }
+    }
+
+    /**
+     * Runs the monolithic simulation loop with NO I/O inside the timed region,
+     * so the measured duration reflects procedural processing cost only -- not
+     * System.out overhead. A fresh Random is seeded on every call (rather than
+     * reused from a shared static field), so the workload is reproducible on
+     * every single invocation, not just the first one in a process.
+     */
+    public static Result runQuiet(long seed) {
+        Random random = new Random(seed);
 
         int processedTcp = 0;
         int processedUdp = 0;
         int processedIcmp = 0;
         int droppedPackets = 0;
 
+        long startTime = System.nanoTime();
+
         // Monolithic execution loop
         for (int i = 1; i <= PACKET_COUNT; i++) {
-            String protocol = getRandomProtocol();
+            String protocol = getRandomProtocol(random);
             int payloadSize = random.nextInt(1400) + 64; // 64 to 1464 bytes
             String sourceIp = "192.168.1." + random.nextInt(255);
             String destIp = "10.0.0." + random.nextInt(255);
@@ -38,49 +67,49 @@ public class ProceduralSimulator {
 
             // Monolithic Protocol Processing (Switch/If-Else branching)
             if ("TCP".equals(protocol)) {
-                // Hardcoded TCP logic
                 processedTcp++;
-                logTraffic("TCP", i, sourceIp, destIp, payloadSize, "ACK_RECEIVED");
             } else if ("UDP".equals(protocol)) {
-                // Hardcoded UDP logic
                 processedUdp++;
-                logTraffic("UDP", i, sourceIp, destIp, payloadSize, "NO_HANDSHAKE");
             } else if ("ICMP".equals(protocol)) {
-                // Hardcoded ICMP logic
                 processedIcmp++;
-                logTraffic("ICMP", i, sourceIp, destIp, payloadSize, "ECHO_REQUEST");
             }
         }
 
         long endTime = System.nanoTime();
         double durationMs = (endTime - startTime) / 1_000_000.0;
 
+        return new Result(processedTcp, processedUdp, processedIcmp, droppedPackets, durationMs);
+    }
+
+    /**
+     * Standalone CLI demo entry point. Uses the same quiet, I/O-free core loop
+     * as the benchmark harness, then prints a summary once timing is complete.
+     */
+    public static void main(String[] args) {
+        System.out.println("==================================================");
+        System.out.println("  STARTING MODEL A: PROCEDURAL BASELINE SIMULATION ");
+        System.out.println("==================================================");
+
+        Result result = runQuiet(DEFAULT_SEED);
+
         System.out.println("\n--------------------------------------------------");
         System.out.println("  BASE RESULTS (MODEL A)");
         System.out.println("--------------------------------------------------");
         System.out.println("Total Packets Sent : " + PACKET_COUNT);
-        System.out.println("TCP Processed      : " + processedTcp);
-        System.out.println("UDP Processed      : " + processedUdp);
-        System.out.println("ICMP Processed     : " + processedIcmp);
-        System.out.println("Packets Dropped    : " + droppedPackets);
-        System.out.println("Execution Time     : " + String.format("%.3f", durationMs) + " ms");
+        System.out.println("TCP Processed      : " + result.processedTcp);
+        System.out.println("UDP Processed      : " + result.processedUdp);
+        System.out.println("ICMP Processed     : " + result.processedIcmp);
+        System.out.println("Packets Dropped    : " + result.droppedPackets);
+        System.out.println("Execution Time     : " + String.format("%.3f", result.durationMs) + " ms");
         System.out.println("==================================================");
     }
 
-    private static String getRandomProtocol() {
+    private static String getRandomProtocol(Random random) {
         int choice = random.nextInt(3);
         return switch (choice) {
             case 0 -> "TCP";
             case 1 -> "UDP";
             default -> "ICMP";
         };
-    }
-
-    private static void logTraffic(String proto, int id, String src, String dst, int size, String flag) {
-        // Simulates logging overhead inside the procedural loop
-        if (id % 2500 == 0) { // Sample output to keep terminal clean
-            System.out.printf("[LOG #%d] Protocol: %-4s | %s -> %s | Size: %d bytes | Flag: %s%n",
-                    id, proto, src, dst, size, flag);
-        }
     }
 }
