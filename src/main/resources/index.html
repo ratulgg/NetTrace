@@ -553,7 +553,7 @@
                         taxElement.innerText = "0 ns";
                         taxElement.style.color = "var(--text-secondary)";
                     } else {
-                        const liveTax = data.tax_ns || 23.5;
+                        const liveTax = (typeof data.tax_ns === 'number') ? data.tax_ns : 23.5;
                         let formattedTax = liveTax > 0 ? `+${liveTax.toLocaleString()}` : `${liveTax.toLocaleString()}`;
                         taxElement.innerText = `${formattedTax} ns`;
                         taxElement.style.color = liveTax < 0 ? "#10b981" : "var(--accent-blue)";

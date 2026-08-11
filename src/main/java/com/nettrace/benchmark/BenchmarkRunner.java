@@ -1,33 +1,32 @@
 package com.nettrace.benchmark;
 
+import com.nettrace.modelA_baseline.ProceduralSimulator;
+import com.nettrace.modelB_patterns.PatternSimulator;
+
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 
 public class BenchmarkRunner {
 
     public static BenchmarkResult run(int warmupRuns, int measuredRuns, long seed) {
-        // 1. JVM Warmup Phase
-        int effectiveWarmup = Math.max(warmupRuns, 25); 
+        // 1. JVM Warmup Phase -- run the REAL Model A / Model B engines so the
+        // JIT compiles the actual Factory + Observer dispatch path, not a
+        // throwaway stand-in loop.
+        int effectiveWarmup = Math.max(warmupRuns, 25);
         for (int i = 0; i < effectiveWarmup; i++) {
-            runProceduralSimulation(seed);
-            runPatternSimulation(seed);
+            ProceduralSimulator.runQuiet(seed);
+            PatternSimulator.runQuiet(seed);
         }
 
         List<Double> timesA = new ArrayList<>();
         List<Double> timesB = new ArrayList<>();
 
-        // 2. Timed Measurement Phase
+        // 2. Timed Measurement Phase -- each engine times itself internally
+        // (see ProceduralSimulator/PatternSimulator.runQuiet), so the
+        // "Observer Overhead" reflects Factory/Observer dispatch cost only.
         for (int i = 0; i < measuredRuns; i++) {
-            long startA = System.nanoTime();
-            runProceduralSimulation(seed + i);
-            double msA = (System.nanoTime() - startA) / 1_000_000.0;
-            timesA.add(msA);
-
-            long startB = System.nanoTime();
-            runPatternSimulation(seed + i);
-            double msB = (System.nanoTime() - startB) / 1_000_000.0;
-            timesB.add(msB);
+            timesA.add(ProceduralSimulator.runQuiet(seed + i).durationMs);
+            timesB.add(PatternSimulator.runQuiet(seed + i).durationMs);
         }
 
         // 3. Outlier Rejection for Cloud Deployments (Trimmed Mean)
@@ -56,35 +55,6 @@ public class BenchmarkRunner {
         return new BenchmarkResult(avgA, avgB, taxMs, taxPercent, timesA, timesB);
     }
 
-    private static void runProceduralSimulation(long seed) {
-        Random rand = new Random(seed);
-        double val = 0;
-        for (int i = 0; i < 2000; i++) {
-            val += Math.sin(rand.nextDouble() * i);
-        }
-    }
-
-    private static void runPatternSimulation(long seed) {
-        Random rand = new Random(seed);
-        SimulationContext ctx = new SimulationContext(rand);
-        for (int i = 0; i < 2000; i++) {
-            ctx.processStep(i);
-        }
-    }
-
-    private static class SimulationContext {
-        private final Random rand;
-        private double accumulator = 0;
-
-        public SimulationContext(Random rand) {
-            this.rand = rand;
-        }
-
-        public void processStep(int i) {
-            accumulator += Math.sin(rand.nextDouble() * i);
-        }
-    }
-
     public static class BenchmarkResult {
         public double avgModelAMs;
         public double avgModelBMs;
@@ -104,14 +74,30 @@ public class BenchmarkRunner {
             this.modelBTimesMs = modelBTimesMs;
         }
 
-        // 2-argument constructor used by PatternEngineTest.java
+        // 2-argument constructor used by PatternEngineTest.java -- derives
+        // averages/tax from the raw timing lists instead of leaving them at 0.
         public BenchmarkResult(List<Double> modelATimesMs, List<Double> modelBTimesMs) {
             this.modelATimesMs = modelATimesMs;
             this.modelBTimesMs = modelBTimesMs;
-            this.avgModelAMs = 0.0;
-            this.avgModelBMs = 0.0;
-            this.taxMs = 0.0;
-            this.taxPercent = 0.0;
+            this.avgModelAMs = average(modelATimesMs);
+            this.avgModelBMs = average(modelBTimesMs);
+            this.taxMs = this.avgModelBMs - this.avgModelAMs;
+            this.taxPercent = (this.avgModelAMs == 0.0) ? 0.0 : (this.taxMs / this.avgModelAMs) * 100.0;
         }
+
+        private static double average(List<Double> values) {
+            if (values == null || values.isEmpty()) return 0.0;
+            double sum = 0.0;
+            for (double v : values) sum += v;
+            return sum / values.size();
+        }
+
+        // Accessor methods -- kept alongside the public fields above so both
+        // field access (NetTraceServer) and method-call access (PatternEngineTest)
+        // work against the same object.
+        public double avgModelAMs() { return avgModelAMs; }
+        public double avgModelBMs() { return avgModelBMs; }
+        public double taxMs() { return taxMs; }
+        public double taxPercent() { return taxPercent; }
     }
 }
