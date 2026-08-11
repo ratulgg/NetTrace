@@ -1,5 +1,12 @@
 # NetTrace
 
+[![Live Demo](https://img.shields.io/badge/live%20demo-nettrace.onrender.com-1d9e75?style=for-the-badge)](https://nettrace.onrender.com/)
+
+Click the badge above for the running dashboard at
+[nettrace.onrender.com](https://nettrace.onrender.com/) — it's the actual
+Java backend on Render, not a static screenshot. First load may take a
+few seconds if the free-tier instance was asleep.
+
 A live network-routing & threat-detection simulator that runs the *same*
 workload two ways — a plain **procedural** implementation and a
 **Factory + Observer** pattern-driven implementation — and measures the
