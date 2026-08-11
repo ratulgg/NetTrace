@@ -13,285 +13,104 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <style>
-        /* =========================================================
-           1. THEMES & PALETTES
-           ========================================================= */
         [data-theme="dark"] {
-            --bg-main: #090d14;
-            --bg-sidebar: rgba(13, 18, 27, 0.95);
-            --bg-card: rgba(20, 27, 38, 0.88);
-            --bg-hover: #1e2838;
-            --border-color: #2a374c;
-            --text-primary: #f8fafc;
-            --text-secondary: #94a3b8;
-            --accent-blue: #0088ff;
-            --accent-glow: rgba(0, 136, 255, 0.22);
-            --accent-coral: #ff5757;
-            --track-bg: rgba(255, 255, 255, 0.08);
-            --option-bg: #141b26;
+            --bg-main: #090d14; --bg-sidebar: rgba(13, 18, 27, 0.95); --bg-card: rgba(20, 27, 38, 0.88);
+            --bg-hover: #1e2838; --border-color: #2a374c; --text-primary: #f8fafc; --text-secondary: #94a3b8;
+            --accent-blue: #0088ff; --accent-glow: rgba(0, 136, 255, 0.22); --accent-coral: #ff5757;
+            --track-bg: rgba(255, 255, 255, 0.08); --option-bg: #141b26;
         }
-
         [data-theme="white"] {
-            --bg-main: #f1f5f9;
-            --bg-sidebar: rgba(255, 255, 255, 0.98);
-            --bg-card: rgba(255, 255, 255, 0.95);
-            --bg-hover: #e2e8f0;
-            --border-color: #cbd5e1;
-            --text-primary: #0f172a;
-            --text-secondary: #475569;
-            --accent-blue: #0284c7;
-            --accent-glow: rgba(2, 132, 199, 0.18);
-            --accent-coral: #dc2626;
-            --track-bg: #e2e8f0;
-            --option-bg: #ffffff;
+            --bg-main: #f1f5f9; --bg-sidebar: rgba(255, 255, 255, 0.98); --bg-card: rgba(255, 255, 255, 0.95);
+            --bg-hover: #e2e8f0; --border-color: #cbd5e1; --text-primary: #0f172a; --text-secondary: #475569;
+            --accent-blue: #0284c7; --accent-glow: rgba(2, 132, 199, 0.18); --accent-coral: #dc2626;
+            --track-bg: #e2e8f0; --option-bg: #ffffff;
         }
-
         [data-theme="cyberpunk"] {
-            --bg-main: #050507;
-            --bg-sidebar: rgba(12, 12, 16, 0.98);
-            --bg-card: rgba(16, 16, 22, 0.92);
-            --bg-hover: #1c1c2b;
-            --border-color: #fcee0a;
-            --text-primary: #fcee0a;
-            --text-secondary: #00f0ff;
-            --accent-blue: #00f0ff;
-            --accent-glow: rgba(0, 240, 255, 0.25);
-            --accent-coral: #ff0055;
-            --track-bg: #1c1c2b;
-            --option-bg: #101018;
+            --bg-main: #050507; --bg-sidebar: rgba(12, 12, 16, 0.98); --bg-card: rgba(16, 16, 22, 0.92);
+            --bg-hover: #1c1c2b; --border-color: #fcee0a; --text-primary: #fcee0a; --text-secondary: #00f0ff;
+            --accent-blue: #00f0ff; --accent-glow: rgba(0, 240, 255, 0.25); --accent-coral: #ff0055;
+            --track-bg: #1c1c2b; --option-bg: #101018;
         }
-
         [data-theme="violet"] {
-            --bg-main: #0a0612;
-            --bg-sidebar: rgba(16, 9, 28, 0.95);
-            --bg-card: rgba(24, 13, 42, 0.88);
-            --bg-hover: #2e174b;
-            --border-color: #3f2066;
-            --text-primary: #f3e8ff;
-            --text-secondary: #c084fc;
-            --accent-blue: #c084fc;
-            --accent-glow: rgba(192, 132, 252, 0.25);
-            --accent-coral: #f43f5e;
-            --track-bg: #23123b;
-            --option-bg: #1a0e2e;
+            --bg-main: #0a0612; --bg-sidebar: rgba(16, 9, 28, 0.95); --bg-card: rgba(24, 13, 42, 0.88);
+            --bg-hover: #2e174b; --border-color: #3f2066; --text-primary: #f3e8ff; --text-secondary: #c084fc;
+            --accent-blue: #c084fc; --accent-glow: rgba(192, 132, 252, 0.25); --accent-coral: #f43f5e;
+            --track-bg: #23123b; --option-bg: #1a0e2e;
         }
 
-        /* =========================================================
-           2. CORE LAYOUT & TYPOGRAPHY
-           ========================================================= */
         *, *::before, *::after {
-            box-sizing: border-box;
-            margin: 0; padding: 0;
+            box-sizing: border-box; margin: 0; padding: 0;
             font-family: 'Inter', -apple-system, sans-serif;
             transition: background-color 0.2s, border-color 0.2s, color 0.2s;
         }
 
-        html, body {
-            height: 100vh; width: 100vw;
-            overflow: hidden;
-            background-color: var(--bg-main);
-            color: var(--text-primary);
-            font-size: 15px;
-        }
+        html, body { height: 100vh; width: 100vw; overflow: hidden; background-color: var(--bg-main); color: var(--text-primary); font-size: 15px; }
+        body { display: flex; background-image: radial-gradient(circle at 50% 0%, var(--accent-glow) 0%, transparent 60%); }
+        .glass-panel { backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
 
-        body {
-            display: flex;
-            background-image: radial-gradient(circle at 50% 0%, var(--accent-glow) 0%, transparent 60%);
-        }
-
-        .glass-panel {
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-        }
-
-        .mobile-appbar {
-            display: none;
-            align-items: center;
-            justify-content: space-between;
-            padding: 10px 14px;
-            background-color: var(--bg-sidebar);
-            border-bottom: 1px solid var(--border-color);
-            z-index: 150;
-            flex-shrink: 0;
-        }
-
-        .hamburger-btn {
-            background: none; border: none;
-            color: var(--text-primary); cursor: pointer;
-            display: flex; align-items: center; padding: 4px;
-        }
+        .mobile-appbar { display: none; align-items: center; justify-content: space-between; padding: 10px 14px; background-color: var(--bg-sidebar); border-bottom: 1px solid var(--border-color); z-index: 150; flex-shrink: 0; }
+        .hamburger-btn { background: none; border: none; color: var(--text-primary); cursor: pointer; display: flex; align-items: center; padding: 4px; }
         .hamburger-btn svg { width: 24px; height: 24px; stroke: currentColor; stroke-width: 2.2; fill: none; }
-
-        .sidebar-overlay {
-            display: none; position: fixed; inset: 0;
-            background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(6px);
-            z-index: 180;
-        }
+        .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(6px); z-index: 180; }
         .sidebar-overlay.active { display: block; }
-
-        .sidebar {
-            width: 230px; height: 100vh;
-            background-color: var(--bg-sidebar);
-            border-right: 1px solid var(--border-color);
-            display: flex; flex-direction: column;
-            padding: 22px 16px; flex-shrink: 0; z-index: 200;
-        }
-
-        .sidebar-logo {
-            display: flex; align-items: center; gap: 12px;
-            font-size: 1.3rem; font-weight: 900; margin-bottom: 32px; padding-left: 4px;
-        }
-
-        .logo-icon {
-            width: 34px; height: 34px; background: var(--accent-blue);
-            border-radius: 8px; display: flex; align-items: center;
-            justify-content: center; color: #fff; font-weight: 900; font-size: 17px;
-            box-shadow: 0 0 12px var(--accent-glow);
-        }
-
+        .sidebar { width: 230px; height: 100vh; background-color: var(--bg-sidebar); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; padding: 22px 16px; flex-shrink: 0; z-index: 200; }
+        .sidebar-logo { display: flex; align-items: center; gap: 12px; font-size: 1.3rem; font-weight: 900; margin-bottom: 32px; padding-left: 4px; }
+        .logo-icon { width: 34px; height: 34px; background: var(--accent-blue); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 900; font-size: 17px; box-shadow: 0 0 12px var(--accent-glow); }
         .nav-group { display: flex; flex-direction: column; gap: 8px; }
-        .nav-item {
-            display: flex; align-items: center; gap: 12px;
-            padding: 11px 14px; border-radius: 8px;
-            font-size: 0.925rem; font-weight: 700;
-            color: var(--text-secondary); cursor: pointer; text-decoration: none;
-        }
+        .nav-item { display: flex; align-items: center; gap: 12px; padding: 11px 14px; border-radius: 8px; font-size: 0.925rem; font-weight: 700; color: var(--text-secondary); cursor: pointer; text-decoration: none; }
         .nav-item svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 2; }
         .nav-item:hover, .nav-item.active { background-color: var(--bg-hover); color: var(--text-primary); }
         .nav-item.active { border-left: 4px solid var(--accent-blue); }
 
-        .form-control {
-            width: 100%; padding: 10px 12px; border-radius: 8px;
-            background-color: var(--bg-hover); border: 1px solid var(--border-color);
-            color: var(--text-primary); font-size: 0.85rem; outline: none; font-weight: 700;
-            cursor: pointer;
-            appearance: none; -webkit-appearance: none;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-            background-repeat: no-repeat; background-position: right 12px center;
-            padding-right: 36px;
-        }
-
+        .form-control { width: 100%; padding: 10px 12px; border-radius: 8px; background-color: var(--bg-hover); border: 1px solid var(--border-color); color: var(--text-primary); font-size: 0.85rem; outline: none; font-weight: 700; cursor: pointer; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 36px; }
         .form-control option { background-color: var(--option-bg); color: var(--text-primary); padding: 10px; font-weight: 600; }
-
         .main-wrapper { flex: 1; height: 100vh; display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
-
         .content-grid { flex: 1; padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; min-height: 0; overflow: hidden; }
 
-        /* Hero Top Bar */
-        .hero-banner {
-            display: flex; align-items: center; justify-content: space-between;
-            background-color: var(--bg-card); border: 1px solid var(--border-color);
-            border-radius: 12px; padding: 14px 22px; flex-shrink: 0; gap: 16px;
-        }
-
-        .btn-cta {
-            background-color: var(--accent-blue); color: #fff; border: none;
-            padding: 12px 24px; font-size: 0.925rem; font-weight: 800; border-radius: 8px;
-            cursor: pointer; white-space: nowrap; box-shadow: 0 4px 16px var(--accent-glow);
-            letter-spacing: 0.5px; transition: transform 0.15s ease, box-shadow 0.15s ease;
-        }
+        .hero-banner { display: flex; align-items: center; justify-content: space-between; background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 14px 22px; flex-shrink: 0; gap: 16px; }
+        .btn-cta { background-color: var(--accent-blue); color: #fff; border: none; padding: 12px 24px; font-size: 0.925rem; font-weight: 800; border-radius: 8px; cursor: pointer; white-space: nowrap; box-shadow: 0 4px 16px var(--accent-glow); letter-spacing: 0.5px; transition: transform 0.15s ease, box-shadow 0.15s ease; }
         .btn-cta:hover { transform: translateY(-1px); box-shadow: 0 6px 20px var(--accent-glow); }
         .btn-cta:disabled { opacity: 0.6; cursor: not-allowed; }
-
-        .btn-icon-text {
-            background-color: var(--bg-hover); color: var(--text-primary);
-            border: 1px solid var(--border-color); padding: 6px 12px;
-            font-size: 0.775rem; font-weight: 700; border-radius: 6px; cursor: pointer;
-            display: inline-flex; align-items: center; gap: 6px;
-        }
+        .btn-icon-text { background-color: var(--bg-hover); color: var(--text-primary); border: 1px solid var(--border-color); padding: 6px 12px; font-size: 0.775rem; font-weight: 700; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
         .btn-icon-text:hover { background-color: var(--border-color); }
 
-        /* Topology Section */
-        .topology-card {
-            background-color: var(--bg-card); border: 1px solid var(--border-color);
-            border-radius: 12px; padding: 16px 20px; flex-shrink: 0; position: relative;
-            width: 100%; min-width: 0; overflow: hidden;
-        }
-
-        .model-toggle-group {
-            display: inline-flex; background: var(--bg-hover);
-            border: 1px solid var(--border-color); border-radius: 8px; padding: 3px; gap: 2px;
-        }
-
-        .model-pill-btn {
-            background: transparent; border: none; color: var(--text-secondary);
-            padding: 5px 12px; font-size: 0.75rem; font-weight: 800; border-radius: 6px;
-            cursor: pointer; display: inline-flex; align-items: center; transition: all 0.2s ease;
-        }
+        .topology-card { background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px 20px; flex-shrink: 0; position: relative; width: 100%; min-width: 0; overflow: hidden; }
+        .model-toggle-group { display: inline-flex; background: var(--bg-hover); border: 1px solid var(--border-color); border-radius: 8px; padding: 3px; gap: 2px; }
+        .model-pill-btn { background: transparent; border: none; color: var(--text-secondary); padding: 5px 12px; font-size: 0.75rem; font-weight: 800; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; transition: all 0.2s ease; }
         .model-pill-btn.active-model-b { background: var(--accent-blue); color: #ffffff; box-shadow: 0 2px 10px var(--accent-glow); }
         .model-pill-btn.active-model-a { background: #10b981; color: #ffffff; box-shadow: 0 2px 10px rgba(16, 185, 129, 0.3); }
-        .model-pill-btn.active-model-dual {
-            background: linear-gradient(135deg, #10b981 0%, #0088ff 100%); color: #ffffff;
-            box-shadow: 0 2px 12px rgba(0, 136, 255, 0.35);
-        }
+        .model-pill-btn.active-model-dual { background: linear-gradient(135deg, #10b981 0%, #0088ff 100%); color: #ffffff; box-shadow: 0 2px 12px rgba(0, 136, 255, 0.35); }
 
-        .hop-path-bar {
-            display: flex; align-items: center; justify-content: space-between;
-            margin-top: 10px; position: relative; overflow-x: auto; scroll-behavior: smooth;
-            -webkit-overflow-scrolling: touch; padding-top: 12px; padding-bottom: 12px; gap: 4px;
-        }
+        .hop-path-bar { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; position: relative; overflow-x: auto; scroll-behavior: smooth; -webkit-overflow-scrolling: touch; padding-top: 12px; padding-bottom: 12px; gap: 4px; }
         .hop-path-bar::-webkit-scrollbar { height: 4px; }
         .hop-path-bar::-webkit-scrollbar-track { background: var(--track-bg); border-radius: 4px; }
         .hop-path-bar::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
-
-        .hop-node {
-            background: var(--bg-hover); border: 1px solid var(--border-color);
-            border-radius: 10px; padding: 10px 14px; display: flex;
-            flex-direction: column; align-items: center; min-width: 140px;
-            position: relative; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            z-index: 2; flex-shrink: 0;
-        }
-
+        .hop-node { background: var(--bg-hover); border: 1px solid var(--border-color); border-radius: 10px; padding: 10px 14px; display: flex; flex-direction: column; align-items: center; min-width: 140px; position: relative; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 2; flex-shrink: 0; }
         .hop-node.bypassed { opacity: 0.45; border: 1px dashed var(--text-secondary) !important; filter: grayscale(0.85); box-shadow: none !important; }
         .hop-node.bypassed .queue-meter { visibility: hidden; }
-
         .hop-node.active-node { border-color: var(--accent-blue); box-shadow: 0 0 18px var(--accent-glow); transform: translateY(-2px); }
         .hop-node.threat { border-color: var(--accent-coral) !important; background: rgba(239, 68, 68, 0.22) !important; animation: pulseThreat 0.6s infinite alternate; }
-
         @keyframes pulseThreat { 0% { box-shadow: 0 0 6px var(--accent-coral); } 100% { box-shadow: 0 0 24px var(--accent-coral); } }
-
         .queue-meter { width: 100%; height: 5px; background: rgba(255,255,255,0.12); border-radius: 3px; margin-top: 6px; overflow: hidden; }
         .queue-fill { height: 100%; width: 0%; background: #10b981; transition: width 0.3s ease, background 0.3s; }
         .queue-fill.high { background: var(--accent-coral); }
+        .hop-link { flex: 1; height: 8px; background: var(--track-bg); border: 1px solid var(--border-color); border-radius: 99px; margin: 0 8px; position: relative; overflow: hidden; box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3); min-width: 40px; flex-shrink: 0; }
+        .photon-fill { position: absolute; top: 0; left: 0; height: 100%; width: 0%; background: linear-gradient(90deg, transparent 0%, var(--accent-blue) 75%, #ffffff 100%); border-radius: 99px; box-shadow: 0 0 14px var(--accent-blue), 0 0 28px var(--accent-blue); opacity: 0; pointer-events: none; }
+        .photon-fill.threat-photon { background: linear-gradient(90deg, transparent 0%, var(--accent-coral) 75%, #ffffff 100%) !important; box-shadow: 0 0 16px var(--accent-coral), 0 0 32px var(--accent-coral) !important; }
 
-        .hop-link {
-            flex: 1; height: 8px; background: var(--track-bg); border: 1px solid var(--border-color);
-            border-radius: 99px; margin: 0 8px; position: relative; overflow: hidden;
-            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3); min-width: 40px; flex-shrink: 0;
-        }
-
-        .photon-fill {
-            position: absolute; top: 0; left: 0; height: 100%; width: 0%;
-            background: linear-gradient(90deg, transparent 0%, var(--accent-blue) 75%, #ffffff 100%);
-            border-radius: 99px; box-shadow: 0 0 14px var(--accent-blue), 0 0 28px var(--accent-blue);
-            opacity: 0; pointer-events: none;
-        }
-
-        .photon-fill.threat-photon {
-            background: linear-gradient(90deg, transparent 0%, var(--accent-coral) 75%, #ffffff 100%) !important;
-            box-shadow: 0 0 16px var(--accent-coral), 0 0 32px var(--accent-coral) !important;
-        }
-
-        /* Metrics */
         .cards-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; flex-shrink: 0; }
         .scrimba-card { background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 14px 20px; }
         .metric-big { font-size: 1.75rem; font-weight: 900; color: var(--accent-blue); margin-top: 4px; }
-
-        /* Bottom Split Section */
         .bottom-split-row { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; min-height: 0; min-width: 0; }
         .table-card, .chart-card { background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px 20px; display: flex; flex-direction: column; min-height: 0; min-width: 0; overflow: hidden; }
         .table-container { flex: 1; overflow-x: auto; overflow-y: auto; margin-top: 10px; -webkit-overflow-scrolling: touch; width: 100%; }
-
         .log-table { width: 100%; min-width: 540px; border-collapse: collapse; font-size: 0.825rem; }
         .log-table th, .log-table td { padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--border-color); white-space: nowrap; }
         .log-table th { color: var(--text-secondary); font-weight: 800; text-transform: uppercase; position: sticky; top: 0; background-color: var(--bg-card); z-index: 2; font-size: 0.725rem; letter-spacing: 0.6px; }
-
         .badge-threat { background: rgba(239, 68, 68, 0.25); color: var(--accent-coral); padding: 3px 8px; border-radius: 5px; font-weight: 800; }
         .badge-ok { background: rgba(16, 185, 129, 0.25); color: #10b981; padding: 3px 8px; border-radius: 5px; font-weight: 800; }
-
         .chart-container { flex: 1; position: relative; width: 100%; min-height: 0; min-width: 0; }
 
-        /* Modals */
         .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(8px); z-index: 300; align-items: center; justify-content: center; }
         .modal-overlay.active { display: flex; }
         .modal-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 14px; padding: 24px; width: 480px; max-width: 92vw; box-shadow: 0 14px 40px rgba(0,0,0,0.6); }
@@ -401,7 +220,6 @@
                 </div>
 
                 <div class="hop-path-bar" id="hopPathBar">
-                    
                     <div class="hop-node" id="node-0">
                         <span style="font-weight:800; font-size:0.825rem;">Client Gateway</span>
                         <span style="font-size:0.725rem; color: var(--text-secondary);" id="delay-0">-- ms</span>
@@ -440,14 +258,12 @@
                         <div class="queue-meter"><div class="queue-fill" id="qfill-4"></div></div>
                         <span style="font-size:0.675rem; color: var(--text-secondary); margin-top:4px;" id="qtxt-4">Queue: 0/16</span>
                     </div>
-
                 </div>
             </div>
 
             <div class="cards-grid">
                 <div class="scrimba-card glass-panel">
                     <div style="font-size: 0.8rem; font-weight: 800; color: var(--text-secondary);">Observer Overhead</div>
-                    <!-- Added ID "tax-val" right here! -->
                     <div class="metric-big" id="tax-val">Press Run ⚡</div>
                 </div>
                 <div class="scrimba-card glass-panel">
@@ -501,7 +317,6 @@
                     </div>
                 </div>
             </div>
-
         </main>
     </div>
 
@@ -584,7 +399,6 @@
             config.dstIp = document.getElementById('cfg-dst').value;
             config.mode = document.getElementById('cfg-mode').value;
             config.batchSize = document.getElementById('cfg-batch').value;
-
             document.getElementById('lbl-src').innerText = config.srcIp;
             document.getElementById('lbl-dst').innerText = config.dstIp;
             closeConfigModal();
@@ -599,6 +413,7 @@
             const node2Title = document.getElementById('node-2-title');
             
             const taxElement = document.getElementById('tax-val');
+            const threatElement = document.getElementById('threat-val');
 
             btnA.className = 'model-pill-btn';
             btnB.className = 'model-pill-btn';
@@ -610,9 +425,10 @@
                 if (node2Title) node2Title.innerText = "Core Router (AI OFF)";
                 
                 if (taxElement) taxElement.innerText = "0 ns";
-                document.getElementById('threat-val').innerText = "0 (Blind)";
-                document.getElementById('threat-val').style.color = "var(--text-secondary)";
-
+                if (threatElement) {
+                    threatElement.innerText = "0 (Blind)";
+                    threatElement.style.color = "var(--text-secondary)";
+                }
                 jitChart.setDatasetVisibility(0, true);
                 jitChart.setDatasetVisibility(1, false);
             } else if (selectedEngine === 'modelB') {
@@ -621,8 +437,7 @@
                 if (node2Title) node2Title.innerText = "Core AI Firewall";
                 
                 if (taxElement) taxElement.innerText = "Press Run ⚡";
-                document.getElementById('threat-val').style.color = "var(--accent-coral)";
-
+                if (threatElement) threatElement.style.color = "var(--accent-coral)";
                 jitChart.setDatasetVisibility(0, false);
                 jitChart.setDatasetVisibility(1, true);
             } else {
@@ -631,8 +446,7 @@
                 if (node2Title) node2Title.innerText = "Core AI Firewall";
                 
                 if (taxElement) taxElement.innerText = "Press Run ⚡";
-                document.getElementById('threat-val').style.color = "var(--accent-coral)";
-
+                if (threatElement) threatElement.style.color = "var(--accent-coral)";
                 jitChart.setDatasetVisibility(0, true);
                 jitChart.setDatasetVisibility(1, true);
             }
@@ -648,141 +462,64 @@
         }
 
         const ctxChart = document.getElementById('jitChart').getContext('2d');
-
         let jitChart = new Chart(ctxChart, {
             type: 'line',
             data: {
                 labels: [], 
                 datasets: [
-                    { 
-                        label: 'Model A (Baseline)', 
-                        data: [], 
-                        borderColor: '#10b981', 
-                        backgroundColor: 'rgba(16, 185, 129, 0.08)',
-                        borderWidth: 2.5, 
-                        tension: 0.25,
-                        pointRadius: 5,
-                        pointBackgroundColor: '#10b981'
-                    },
-                    { 
-                        label: 'Model B (AI Engine)', 
-                        data: [], 
-                        borderColor: '#0088ff', 
-                        backgroundColor: 'rgba(0, 136, 255, 0.08)',
-                        borderWidth: 2.5, 
-                        tension: 0.25,
-                        pointRadius: 5,
-                        pointBackgroundColor: '#0088ff'
-                    }
+                    { label: 'Model A (Baseline)', data: [], borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.08)', borderWidth: 2.5, tension: 0.25, pointRadius: 5, pointBackgroundColor: '#10b981' },
+                    { label: 'Model B (AI Engine)', data: [], borderColor: '#0088ff', backgroundColor: 'rgba(0, 136, 255, 0.08)', borderWidth: 2.5, tension: 0.25, pointRadius: 5, pointBackgroundColor: '#0088ff' }
                 ]
             },
             options: { 
-                responsive: true, 
-                maintainAspectRatio: false,
-                interaction: { mode: 'index', intersect: false },
-                plugins: { 
-                    legend: { 
-                        position: 'top',
-                        labels: { font: { size: 11, family: 'Inter', weight: '700' }, boxWidth: 14, padding: 12 } 
-                    },
-                    tooltip: {
-                        backgroundColor: 'rgba(15, 20, 29, 0.95)',
-                        titleFont: { size: 12, family: 'Inter', weight: '800' },
-                        bodyFont: { size: 12, family: 'Inter' },
-                        padding: 10,
-                        borderColor: '#2a374c',
-                        borderWidth: 1,
-                        callbacks: {
-                            label: function(context) {
-                                if (context.parsed.y === null) return null;
-                                return ` ${context.dataset.label}: ${context.parsed.y} ms`;
-                            }
-                        }
-                    }
+                responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+                plugins: { legend: { position: 'top', labels: { font: { size: 11, family: 'Inter', weight: '700' }, boxWidth: 14, padding: 12 } },
+                    tooltip: { backgroundColor: 'rgba(15, 20, 29, 0.95)', titleFont: { size: 12, family: 'Inter', weight: '800' }, bodyFont: { size: 12, family: 'Inter' }, padding: 10, borderColor: '#2a374c', borderWidth: 1, callbacks: { label: function(context) { if (context.parsed.y === null) return null; return ` ${context.dataset.label}: ${context.parsed.y} ms`; } } }
                 },
                 scales: {
-                    x: { 
-                        title: { display: true, text: 'Execution History (Live Simulation Runs)', font: { size: 9, family: 'Inter', weight: '700' }, color: '#94a3b8' },
-                        ticks: { font: { size: 10, family: 'Inter' } }, 
-                        grid: { color: 'rgba(255,255,255,0.06)' } 
-                    },
-                    y: { 
-                        type: 'linear',
-                        display: true,
-                        title: { display: true, text: 'Total Latency (ms)', font: { size: 10, family: 'Inter', weight: '700' }, color: '#94a3b8' },
-                        ticks: { font: { size: 10, family: 'Inter' } }, 
-                        grid: { color: 'rgba(255,255,255,0.06)' } 
-                    }
+                    x: { title: { display: true, text: 'Execution History (Live Simulation Runs)', font: { size: 9, family: 'Inter', weight: '700' }, color: '#94a3b8' }, ticks: { font: { size: 10, family: 'Inter' } }, grid: { color: 'rgba(255,255,255,0.06)' } },
+                    y: { type: 'linear', display: true, title: { display: true, text: 'Total Latency (ms)', font: { size: 10, family: 'Inter', weight: '700' }, color: '#94a3b8' }, ticks: { font: { size: 10, family: 'Inter' } }, grid: { color: 'rgba(255,255,255,0.06)' } }
                 }
             }
         });
 
         function updateChartColors() {
             const currentTheme = document.documentElement.getAttribute('data-theme');
-            let gridColor = 'rgba(255,255,255,0.06)';
-            let textColor = '#94a3b8';
-
+            let gridColor = 'rgba(255,255,255,0.06)'; let textColor = '#94a3b8';
             if (currentTheme === 'white') { gridColor = '#cbd5e1'; textColor = '#475569'; }
             else if (currentTheme === 'violet') { gridColor = '#3f2066'; textColor = '#c084fc'; }
             else if (currentTheme === 'cyberpunk') { gridColor = '#1c1c2b'; textColor = '#00f0ff'; }
-
-            jitChart.options.scales.x.grid.color = gridColor;
-            jitChart.options.scales.y.grid.color = gridColor;
-            jitChart.options.scales.x.ticks.color = textColor;
-            jitChart.options.scales.y.ticks.color = textColor;
+            jitChart.options.scales.x.grid.color = gridColor; jitChart.options.scales.y.grid.color = gridColor;
+            jitChart.options.scales.x.ticks.color = textColor; jitChart.options.scales.y.ticks.color = textColor;
             jitChart.update();
         }
 
         async function runPhotonSequence(hops, isModelA) {
             const bar = document.getElementById('hopPathBar');
-
             for (let i = 0; i < 5; i++) {
                 const node = document.getElementById(`node-${i}`);
                 if (node) node.classList.remove('active-node', 'threat');
                 const photon = document.getElementById(`photon-${i}`);
-                if (photon) {
-                    photon.style.transition = 'none';
-                    photon.style.width = '0%';
-                    photon.style.opacity = '0';
-                    photon.classList.remove('threat-photon');
-                }
+                if (photon) { photon.style.transition = 'none'; photon.style.width = '0%'; photon.style.opacity = '0'; photon.classList.remove('threat-photon'); }
             }
-
             for (let i = 0; i < 5; i++) {
                 const currentNode = document.getElementById(`node-${i}`);
                 if (currentNode) {
                     currentNode.classList.add('active-node');
-                    if (bar) {
-                        currentNode.scrollIntoView({
-                            behavior: 'smooth',
-                            inline: 'center',
-                            block: 'nearest'
-                        });
-                    }
+                    if (bar) currentNode.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
                 }
-
-                if (!isModelA && hops[i] && hops[i].threat) {
-                    currentNode.classList.add('threat');
-                }
-
+                if (!isModelA && hops[i] && hops[i].threat) currentNode.classList.add('threat');
                 if (i < 4) {
                     const photon = document.getElementById(`photon-${i}`);
                     if (photon) {
                         const isThreatHop = !isModelA && ((hops[i+1] && hops[i+1].threat) || (hops[i] && hops[i].threat));
                         if (isThreatHop) photon.classList.add('threat-photon');
-
                         photon.style.transition = 'width 0.85s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.3s ease';
-                        photon.style.opacity = '1';
-                        photon.style.width = '100%';
-
+                        photon.style.opacity = '1'; photon.style.width = '100%';
                         await new Promise(r => setTimeout(r, 850));
-
-                        photon.style.transition = 'opacity 0.4s ease';
-                        photon.style.opacity = '0';
+                        photon.style.transition = 'opacity 0.4s ease'; photon.style.opacity = '0';
                     }
-                } else {
-                    await new Promise(r => setTimeout(r, 200));
-                }
+                } else { await new Promise(r => setTimeout(r, 200)); }
             }
         }
 
@@ -791,39 +528,24 @@
             const container = document.getElementById('testListContainer');
             container.innerHTML = '<div style="text-align:center; padding: 24px; font-size: 0.85rem; font-weight:700;">Executing backend JUnit assertions...</div>';
             modal.classList.add('active');
-
             try {
                 const res = await fetch('/api/tests');
                 const data = await res.json();
-
                 container.innerHTML = '';
                 data.results.forEach(t => {
                     const item = document.createElement('div');
-                    item.style.padding = '10px 14px';
-                    item.style.borderRadius = '8px';
-                    item.style.background = 'var(--bg-hover)';
-                    item.style.border = '1px solid var(--border-color)';
-                    item.style.fontSize = '0.825rem';
-                    item.style.display = 'flex';
-                    item.style.justifyContent = 'space-between';
-                    item.style.alignItems = 'center';
-
-                    item.innerHTML = `
-                        <span style="font-weight:600;">${t.name}</span>
-                        <span style="color: #10b981; font-weight: 800;">✓ PASSED</span>
-                    `;
+                    item.style.padding = '10px 14px'; item.style.borderRadius = '8px'; item.style.background = 'var(--bg-hover)';
+                    item.style.border = '1px solid var(--border-color)'; item.style.fontSize = '0.825rem'; item.style.display = 'flex'; item.style.justifyContent = 'space-between'; item.style.alignItems = 'center';
+                    item.innerHTML = `<span style="font-weight:600;">${t.name}</span><span style="color: #10b981; font-weight: 800;">✓ PASSED</span>`;
                     container.appendChild(item);
                 });
-            } catch (e) {
-                container.innerHTML = `<div style="color:var(--accent-coral); text-align:center; padding:20px;">Error connecting to test engine: ${e}</div>`;
-            }
+            } catch (e) { container.innerHTML = `<div style="color:var(--accent-coral); text-align:center; padding:20px;">Error connecting to test engine: ${e}</div>`; }
         }
 
         async function runSimulation() {
             const btn = document.getElementById('run-btn');
             btn.innerText = "TRACING STREAM...";
             btn.disabled = true;
-
             const isModelA = config.engine === 'modelA';
 
             try {
@@ -833,45 +555,48 @@
 
                 if (data.hops) await runPhotonSequence(data.hops, isModelA);
 
-                // --- THE CRITICAL FIX: GRABBING THE REAL TAX FROM JAVA BACKEND ---
+                // --- BULLETPROOF SEPARATED DOM UPDATES ---
                 const taxElement = document.getElementById('tax-val');
-                const threatElement = document.getElementById('threat-val');
-
-                if (taxElement && threatElement) {
+                if (taxElement) {
                     if (isModelA) {
                         taxElement.innerText = "0 ns";
                         taxElement.style.color = "var(--text-secondary)";
-                        threatElement.innerText = "0 (Blind)";
-                    } else if (config.engine === 'dual') {
-                        const liveTax = data.tax_ns || 23.5;
-                        taxElement.innerText = `+${liveTax} ns (AI)`;
-                        taxElement.style.color = "var(--accent-blue)";
-                        threatElement.innerText = `${data.detected_threats || 2}`;
                     } else {
                         const liveTax = data.tax_ns || 23.5;
-                        taxElement.innerText = `+${liveTax} ns`;
-                        taxElement.style.color = "var(--accent-blue)";
+                        let formattedTax = liveTax > 0 ? `+${liveTax.toLocaleString()}` : `${liveTax.toLocaleString()}`;
+                        taxElement.innerText = `${formattedTax} ns`;
+                        taxElement.style.color = liveTax < 0 ? "#10b981" : "var(--accent-blue)";
+                    }
+                }
+
+                const threatElement = document.getElementById('threat-val');
+                if (threatElement) {
+                    if (isModelA) {
+                        threatElement.innerText = "0 (Blind)";
+                        threatElement.style.color = "var(--text-secondary)";
+                    } else {
                         threatElement.innerText = `${data.detected_threats || 2}`;
+                        threatElement.style.color = "var(--accent-coral)";
                     }
                 }
                 
-                document.getElementById('pps-val').innerText = `${(data.throughput_pps || 14820).toLocaleString()} pps`;
-                document.getElementById('loss-val').innerText = `${data.packet_loss_pct || 0.01}%`;
+                const ppsElement = document.getElementById('pps-val');
+                if (ppsElement) ppsElement.innerText = `${(data.throughput_pps || 14820).toLocaleString()} pps`;
+                
+                const lossElement = document.getElementById('loss-val');
+                if (lossElement) lossElement.innerText = `${data.packet_loss_pct || 0.01}%`;
 
                 if (data.hops) {
                     data.hops.forEach((h, i) => {
                         const delayEl = document.getElementById(`delay-${i}`);
                         const qfillEl = document.getElementById(`qfill-${i}`);
                         const qtxtEl = document.getElementById(`qtxt-${i}`);
-
                         if (delayEl && qfillEl && qtxtEl) {
                             const adjustedDelay = isModelA ? (h.delay_ms * 0.92).toFixed(2) : h.delay_ms;
                             delayEl.innerText = `${adjustedDelay} ms`;
                             qtxtEl.innerText = `Queue: ${h.queue_depth}/${h.queue_capacity}`;
-
                             const fillPct = (h.queue_depth / h.queue_capacity) * 100;
                             qfillEl.style.width = `${fillPct}%`;
-
                             if (!isModelA && fillPct > 60) qfillEl.classList.add('high');
                             else qfillEl.classList.remove('high');
                         }
@@ -880,7 +605,6 @@
 
                 runCount++;
                 const newLabel = `Run #${runCount}`;
-                
                 const modelAMs = data.model_a_latency_ms || 16.3;
                 const modelBMs = data.model_b_latency_ms || 17.7;
 
@@ -893,26 +617,26 @@
                 jitChart.data.labels.push(newLabel);
                 jitChart.data.datasets[0].data.push(modelAMs);
                 jitChart.data.datasets[1].data.push(modelBMs);
-
-                // --- THE SECOND CRITICAL FIX: REMOVED switchModel() ---
                 jitChart.update();
 
                 if (data.packet_stream) {
                     latestStreamData = data.packet_stream;
                     const tbody = document.getElementById('streamTableBody');
-                    tbody.innerHTML = '';
-                    data.packet_stream.forEach(p => {
-                        const row = document.createElement('tr');
-                        const isThreatShown = !isModelA && p.threat;
-                        row.innerHTML = `
-                            <td><b>${p.id}</b></td>
-                            <td>${p.srcIp}:${p.srcPort}</td>
-                            <td>${p.dstIp}:${p.dstPort}</td>
-                            <td>${p.protocol}</td>
-                            <td><span class="${isThreatShown ? 'badge-threat' : 'badge-ok'}">${isThreatShown ? '⚠️ ' + p.type : (isModelA ? '✓ PASSED (UNINSPECTED)' : '✓ BENIGN')}</span></td>
-                        `;
-                        tbody.appendChild(row);
-                    });
+                    if (tbody) {
+                        tbody.innerHTML = '';
+                        data.packet_stream.forEach(p => {
+                            const row = document.createElement('tr');
+                            const isThreatShown = !isModelA && p.threat;
+                            row.innerHTML = `
+                                <td><b>${p.id}</b></td>
+                                <td>${p.srcIp}:${p.srcPort}</td>
+                                <td>${p.dstIp}:${p.dstPort}</td>
+                                <td>${p.protocol}</td>
+                                <td><span class="${isThreatShown ? 'badge-threat' : 'badge-ok'}">${isThreatShown ? '⚠️ ' + p.type : (isModelA ? '✓ PASSED (UNINSPECTED)' : '✓ BENIGN')}</span></td>
+                            `;
+                            tbody.appendChild(row);
+                        });
+                    }
                 }
 
             } catch (e) {
@@ -924,20 +648,12 @@
         }
 
         function exportCSV() {
-            if (!latestStreamData || latestStreamData.length === 0) {
-                alert("Run a live simulation first to generate telemetry data!");
-                return;
-            }
+            if (!latestStreamData || latestStreamData.length === 0) { alert("Run a live simulation first to generate telemetry data!"); return; }
             let csv = "Packet_ID,Source_IP,Source_Port,Dest_IP,Dest_Port,Protocol,TCP_Flags,Size_Bytes,Is_Threat,Attack_Type\n";
-            latestStreamData.forEach(p => {
-                csv += `${p.id},${p.srcIp},${p.srcPort},${p.dstIp},${p.dstPort},${p.protocol},${p.flags},${p.size},${p.threat},${p.type}\n`;
-            });
+            latestStreamData.forEach(p => { csv += `${p.id},${p.srcIp},${p.srcPort},${p.dstIp},${p.dstPort},${p.protocol},${p.flags},${p.size},${p.threat},${p.type}\n`; });
             const blob = new Blob([csv], { type: 'text/csv' });
             const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.setAttribute('href', url);
-            a.setAttribute('download', 'NetTrace_Telemetry_Report.csv');
-            a.click();
+            const a = document.createElement('a'); a.setAttribute('href', url); a.setAttribute('download', 'NetTrace_Telemetry_Report.csv'); a.click();
         }
     </script>
 </body>
