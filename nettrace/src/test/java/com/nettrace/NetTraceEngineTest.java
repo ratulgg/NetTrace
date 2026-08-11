@@ -1,10 +1,10 @@
 package com.nettrace;
 
-import com.nettrace.NetTraceServer.Packet;
-import com.nettrace.NetTraceServer.PacketQueue;
 import com.nettrace.NetTraceServer.SyntheticPacketStream;
 import com.nettrace.NetTraceServer.SyntheticPacketStream.SyntheticPacket;
-import com.nettrace.NetTraceServer.TopologyEngine;
+
+// Packet, PacketQueue, and TopologyEngine are top-level classes in this
+// same package (com.nettrace) now, so they need no import.
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
