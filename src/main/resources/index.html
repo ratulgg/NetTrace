@@ -821,7 +821,7 @@
                 btnA.className = 'model-pill-btn active-model-a';
                 if (node2) node2.classList.add('bypassed');
                 if (node2Title) node2Title.innerText = "Core Router (AI OFF)";
-                document.getElementById('tax-val').innerText = "0 ns";
+                document.getElementById('tax-val').innerText = "N/A (no Observer)";
                 document.getElementById('threat-val').innerText = "0 (Blind)";
                 document.getElementById('threat-val').style.color = "var(--text-secondary)";
 
@@ -1067,7 +1067,7 @@
                 if (data.hops) await runPhotonSequence(data.hops, isModelA);
 
                 if (isModelA) {
-                    document.getElementById('tax-val').innerText = "0 ns";
+                    document.getElementById('tax-val').innerText = "N/A (no Observer)";
                     document.getElementById('threat-val').innerText = "0 (Blind)";
                 } else if (config.engine === 'dual') {
                     document.getElementById('tax-val').innerText = `+${data.tax_ns} ns (AI)`;
