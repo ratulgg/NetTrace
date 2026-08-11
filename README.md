@@ -45,6 +45,54 @@ shown live in the dashboard, not hardcoded from a one-time offline run.
 - Vanilla HTML/CSS/JS dashboard (Chart.js for the latency graph)
 - Docker multi-stage build for deployment
 
+## AI model — threat classifier
+
+`AiThreatClassifier` is a **logistic regression** trained offline with
+scikit-learn (`training/train_threat_classifier.py`) on 30,000 synthetic,
+labeled packets. The learned weights (5 of them, plus a bias) are hardcoded
+into the Java class, so the running server has zero ML library dependency —
+inference at request time is just a dot product and a sigmoid.
+
+**Features (5):**
+
+| Feature | Description |
+|---|---|
+| `payload / 1500.0` | Normalized payload size |
+| `is_syn` | 1 if TCP flag is `SYN` |
+| `is_suspicious_port` | 1 if destination port isn't 80 or 443 |
+| `is_high_src_port` | 1 if source port > 60000 |
+| `is_icmp` | 1 if protocol is `ICMP` |
+
+**Decision rule:** `sigmoid(w·x + b) > 0.5` ⇒ classified as a threat
+(`AiThreatClassifier.THREAT_THRESHOLD`).
+
+**Accuracy:** ~83% on the training set (30,000 synthetic samples, printed
+by the training script as `model.score(X, y)`). Note this is *training*
+accuracy, not held-out/test accuracy — the script doesn't do a train/test
+split, so treat 83% as an upper-bound sanity check rather than a
+generalization guarantee.
+
+**Honesty notes (also in the class Javadoc):**
+- Trained on **synthetic**, seeded data — not real network traffic.
+- Intentionally simple: 5 hand-picked features, no hidden layers, no
+  regularization tuning, no cross-validation.
+- Built for a course project / demo, not a production intrusion detection
+  system.
+- The synthetic data generator overlaps the two classes on purpose (e.g.
+  payload size is drawn from overlapping normal distributions for benign
+  vs. attack) so no single feature perfectly separates threat from
+  non-threat — this is meant to make the ~83% figure meaningful rather
+  than trivially 100%.
+
+To retrain (e.g. with different features or a larger dataset):
+```bash
+pip install numpy scikit-learn
+python3 training/train_threat_classifier.py
+```
+This prints the new accuracy and the 6 constants (`W_PAYLOAD`, `W_SYN`,
+`W_SUSPICIOUS_PORT`, `W_HIGH_SRC_PORT`, `W_ICMP`, `BIAS`) to paste back
+into `AiThreatClassifier.java` — there's no runtime model-loading step.
+
 ## Project layout
 
 ```
@@ -283,3 +331,49 @@ doesn't skew the reported average.
 > under "Running it" above. Treat those figures as a real, one-time
 > result rather than a number you can currently regenerate with a single
 > documented command.
+
+## Ideas for UI/UX enhancements
+
+The dashboard (`src/main/resources/index.html`) already has a glass-panel
+theme, light/dark switcher, and a live topology view. Some ideas for
+taking it further, roughly in order of effort:
+
+**Low effort**
+- Animate the metric cards (`tax-val`, `threat-val`, `pps-val`, `loss-val`)
+  with a count-up/count-down transition instead of snapping to the new
+  number, so live updates feel less jumpy.
+- Add a tooltip or small "?" info icon next to "abstraction tax" and the
+  threat count explaining what they mean and how they're computed — new
+  visitors currently have to read this README to know.
+- Add a visible loading/skeleton state on `#run-btn` while `/api/run` is
+  in flight, and disable the button to prevent double-submits.
+- Surface toast notifications for errors (e.g. a failed `/api/run` call)
+  instead of failing silently.
+
+**Medium effort**
+- Show *why* a packet was flagged as a threat — e.g. a small breakdown of
+  which of the 5 features fired (SYN flag, suspicious port, etc.) next to
+  each row in the packet log table, so the AI classifier's output is
+  explainable rather than just a yes/no badge.
+- Add a run history / sparkline so users can see how the abstraction tax
+  has trended over their last N runs, not just the latest one.
+- Make the 5-hop topology view interactive — clicking a hop node could
+  show that node's queue depth over time, or its drop reason, instead of
+  only the current-state meter.
+- Improve keyboard/screen-reader accessibility: `aria-live` regions for
+  the metric cards so updates are announced, focus states on the model
+  toggle pills, and `aria-label`s on icon-only buttons.
+
+**Higher effort**
+- Replace the polling-style "click to run" flow with a streaming view
+  (Server-Sent Events or WebSocket) so packets animate through the
+  topology in real time instead of the dashboard jumping straight to a
+  finished result.
+- Add a side-by-side "diff" view for Model A vs Model B that highlights
+  where in the pipeline the latency actually diverges, rather than only
+  showing the final aggregate tax.
+- Persist user preferences (theme, last-used `srcIp`/`dstIp`, model
+  selection) so the dashboard remembers state across reloads.
+- A guided "first run" walkthrough/tour for first-time visitors, since
+  the dashboard currently assumes the user already understands what
+  Model A/B and the abstraction tax are.
