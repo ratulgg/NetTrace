@@ -219,6 +219,11 @@
                     </div>
                 </div>
 
+                <!-- Subtitle to match your custom screenshot -->
+                <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); text-align: right; margin-top: 6px;">
+                    A = procedural · B = Factory + Observer patterns
+                </div>
+
                 <div class="hop-path-bar" id="hopPathBar">
                     <div class="hop-node" id="node-0">
                         <span style="font-weight:800; font-size:0.825rem;">Client Gateway</span>
@@ -263,8 +268,12 @@
 
             <div class="cards-grid">
                 <div class="scrimba-card glass-panel">
-                    <div style="font-size: 0.8rem; font-weight: 800; color: var(--text-secondary);">Observer Overhead</div>
-                    <div class="metric-big" id="tax-val">Press Run ⚡</div>
+                    <div style="font-size: 0.8rem; font-weight: 800; color: var(--text-secondary); display: flex; align-items: center; gap: 4px;">
+                        Observer Overhead
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                    </div>
+                    <!-- THIS ID="tax-val" IS THE MOST IMPORTANT PART! -->
+                    <div class="metric-big" id="tax-val">-- ns</div>
                 </div>
                 <div class="scrimba-card glass-panel">
                     <div style="font-size: 0.8rem; font-weight: 800; color: var(--text-secondary);">Threats Flagged</div>
@@ -424,7 +433,10 @@
                 if (node2) node2.classList.add('bypassed');
                 if (node2Title) node2Title.innerText = "Core Router (AI OFF)";
                 
-                if (taxElement) taxElement.innerText = "0 ns";
+                if (taxElement) {
+                    taxElement.innerText = "0 ns";
+                    taxElement.style.color = "var(--text-secondary)";
+                }
                 if (threatElement) {
                     threatElement.innerText = "0 (Blind)";
                     threatElement.style.color = "var(--text-secondary)";
@@ -436,7 +448,10 @@
                 if (node2) node2.classList.remove('bypassed');
                 if (node2Title) node2Title.innerText = "Core AI Firewall";
                 
-                if (taxElement) taxElement.innerText = "Press Run ⚡";
+                if (taxElement) {
+                    taxElement.innerText = "Press Run ⚡";
+                    taxElement.style.color = "var(--accent-blue)";
+                }
                 if (threatElement) threatElement.style.color = "var(--accent-coral)";
                 jitChart.setDatasetVisibility(0, false);
                 jitChart.setDatasetVisibility(1, true);
@@ -445,7 +460,10 @@
                 if (node2) node2.classList.remove('bypassed');
                 if (node2Title) node2Title.innerText = "Core AI Firewall";
                 
-                if (taxElement) taxElement.innerText = "Press Run ⚡";
+                if (taxElement) {
+                    taxElement.innerText = "Press Run ⚡";
+                    taxElement.style.color = "var(--accent-blue)";
+                }
                 if (threatElement) threatElement.style.color = "var(--accent-coral)";
                 jitChart.setDatasetVisibility(0, true);
                 jitChart.setDatasetVisibility(1, true);
