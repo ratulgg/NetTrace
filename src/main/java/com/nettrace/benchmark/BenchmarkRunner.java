@@ -7,7 +7,7 @@ import java.util.Random;
 public class BenchmarkRunner {
 
     public static BenchmarkResult run(int warmupRuns, int measuredRuns, long seed) {
-        // 1. JVM Warmup Phase: Force JIT compilation with inline loops
+        // 1. JVM Warmup Phase
         int effectiveWarmup = Math.max(warmupRuns, 25); 
         for (int i = 0; i < effectiveWarmup; i++) {
             runProceduralSimulation(seed);
@@ -85,12 +85,33 @@ public class BenchmarkRunner {
         }
     }
 
-    public record BenchmarkResult(
-        double avgModelAMs, 
-        double avgModelBMs, 
-        double taxMs, 
-        double taxPercent,
-        List<Double> modelATimesMs,
-        List<Double> modelBTimesMs
-    ) {}
+    public static class BenchmarkResult {
+        public double avgModelAMs;
+        public double avgModelBMs;
+        public double taxMs;
+        public double taxPercent;
+        public List<Double> modelATimesMs;
+        public List<Double> modelBTimesMs;
+
+        // 6-argument constructor used by BenchmarkRunner.run()
+        public BenchmarkResult(double avgModelAMs, double avgModelBMs, double taxMs, double taxPercent,
+                               List<Double> modelATimesMs, List<Double> modelBTimesMs) {
+            this.avgModelAMs = avgModelAMs;
+            this.avgModelBMs = avgModelBMs;
+            this.taxMs = taxMs;
+            this.taxPercent = taxPercent;
+            this.modelATimesMs = modelATimesMs;
+            this.modelBTimesMs = modelBTimesMs;
+        }
+
+        // 2-argument constructor used by PatternEngineTest.java
+        public BenchmarkResult(List<Double> modelATimesMs, List<Double> modelBTimesMs) {
+            this.modelATimesMs = modelATimesMs;
+            this.modelBTimesMs = modelBTimesMs;
+            this.avgModelAMs = 0.0;
+            this.avgModelBMs = 0.0;
+            this.taxMs = 0.0;
+            this.taxPercent = 0.0;
+        }
+    }
 }
