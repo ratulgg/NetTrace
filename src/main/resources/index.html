@@ -774,6 +774,30 @@
         let latestStreamData = [];
         let config = { srcIp: "192.168.1.105", dstIp: "10.0.4.22", mode: "normal", batchSize: "10", engine: "dual" };
         let runCount = 0; // Starts clean at 0
+        let lastRunData = null; // Full response from the last successful /api/run - null until first run
+
+        function average(arr) {
+            if (!arr || arr.length === 0) return 0;
+            return arr.reduce((a, b) => a + b, 0) / arr.length;
+        }
+
+        // Renders the Observer Overhead card from lastRunData, given the
+        // currently selected model tab. Centralized here so switchModel()
+        // and runSimulation() can never disagree about what to show.
+        function renderTaxVal() {
+            const el = document.getElementById('tax-val');
+            if (config.engine === 'modelA') {
+                el.innerText = "N/A (no Observer)";
+                return;
+            }
+            if (!lastRunData || typeof lastRunData.tax_ns !== "number" || Number.isNaN(lastRunData.tax_ns)) {
+                el.innerText = "-- ns"; // no successful run yet this session
+                return;
+            }
+            const sign = lastRunData.tax_ns >= 0 ? "+" : "";
+            const suffix = config.engine === 'dual' ? " (AI)" : "";
+            el.innerText = `${sign}${lastRunData.tax_ns.toFixed(1)} ns${suffix}`;
+        }
 
         function closeSidebar() {
             const sidebar = document.getElementById('sidebarNav');
@@ -821,7 +845,6 @@
                 btnA.className = 'model-pill-btn active-model-a';
                 if (node2) node2.classList.add('bypassed');
                 if (node2Title) node2Title.innerText = "Core Router (AI OFF)";
-                document.getElementById('tax-val').innerText = "N/A (no Observer)";
                 document.getElementById('threat-val').innerText = "0 (Blind)";
                 document.getElementById('threat-val').style.color = "var(--text-secondary)";
 
@@ -832,7 +855,6 @@
                 btnB.className = 'model-pill-btn active-model-b';
                 if (node2) node2.classList.remove('bypassed');
                 if (node2Title) node2Title.innerText = "Core AI Firewall";
-                document.getElementById('tax-val').innerText = "-- ns";
                 document.getElementById('threat-val').style.color = "var(--accent-coral)";
 
                 // Hide Model A (Green), Show Model B (Blue)
@@ -842,13 +864,13 @@
                 btnDual.className = 'model-pill-btn active-model-dual';
                 if (node2) node2.classList.remove('bypassed');
                 if (node2Title) node2Title.innerText = "Core AI Firewall";
-                document.getElementById('tax-val').innerText = "-- ns";
                 document.getElementById('threat-val').style.color = "var(--accent-coral)";
 
                 // Show Both Datasets
                 jitChart.setDatasetVisibility(0, true);
                 jitChart.setDatasetVisibility(1, true);
             }
+            renderTaxVal();
             jitChart.update();
         }
 
@@ -923,7 +945,7 @@
                     y: { 
                         type: 'linear',
                         display: true,
-                        title: { display: true, text: 'Total Latency (ms)', font: { size: 10, family: 'Inter', weight: '700' }, color: '#94a3b8' },
+                        title: { display: true, text: '10k-Packet Processing Latency (ms)', font: { size: 10, family: 'Inter', weight: '700' }, color: '#94a3b8' },
                         ticks: { font: { size: 10, family: 'Inter' } }, 
                         grid: { color: 'rgba(255,255,255,0.06)' } 
                     }
@@ -1066,14 +1088,15 @@
 
                 if (data.hops) await runPhotonSequence(data.hops, isModelA);
 
+                // Cache the whole response so renderTaxVal()/switchModel() can
+                // redisplay the real number when the user just changes tabs,
+                // instead of falling back to a placeholder.
+                lastRunData = data;
+                renderTaxVal();
+
                 if (isModelA) {
-                    document.getElementById('tax-val').innerText = "N/A (no Observer)";
                     document.getElementById('threat-val').innerText = "0 (Blind)";
-                } else if (config.engine === 'dual') {
-                    document.getElementById('tax-val').innerText = `+${data.tax_ns} ns (AI)`;
-                    document.getElementById('threat-val').innerText = `${data.detected_threats}`;
                 } else {
-                    document.getElementById('tax-val').innerText = `+${data.tax_ns} ns`;
                     document.getElementById('threat-val').innerText = `${data.detected_threats}`;
                 }
 
@@ -1087,8 +1110,11 @@
                         const qtxtEl = document.getElementById(`qtxt-${i}`);
 
                         if (delayEl && qfillEl && qtxtEl) {
-                            const adjustedDelay = isModelA ? (h.delay_ms * 0.92).toFixed(2) : h.delay_ms;
-                            delayEl.innerText = `${adjustedDelay} ms`;
+                            // Both models trace the same physical hop topology - the real
+                            // difference between them is the CPU-side packet processing
+                            // measured by Observer Overhead above, not the network hop
+                            // latency itself, so we don't fake a faster Model A here.
+                            delayEl.innerText = `${h.delay_ms.toFixed(2)} ms`;
                             qtxtEl.innerText = `Queue: ${h.queue_depth}/${h.queue_capacity}`;
 
                             const fillPct = (h.queue_depth / h.queue_capacity) * 100;
@@ -1101,12 +1127,14 @@
                 }
 
                 // RECORD DATA FOR BOTH MODELS CONTINUOUSLY (NO BROKEN/DOTTED LINES)
+                // Plotted values are the real average latency from this request's
+                // live benchmark (data.model_a_passes / data.model_b_passes),
+                // not a derived/fabricated ratio of the hop-tracing numbers.
                 runCount++;
                 const newLabel = `Run #${runCount}`;
-                const rawTotalMs = data.hops ? data.hops.reduce((a, b) => a + b.delay_ms, 0) : 18.6;
 
-                const modelBMs = Number(rawTotalMs.toFixed(2));
-                const modelAMs = Number((rawTotalMs * 0.92).toFixed(2));
+                const modelAMs = Number(average(data.model_a_passes).toFixed(3));
+                const modelBMs = Number(average(data.model_b_passes).toFixed(3));
 
                 // Maintain clean sliding window of last 10 runs
                 if (jitChart.data.labels.length >= 10) {
