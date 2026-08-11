@@ -168,7 +168,7 @@ static class ApiTestsHandler implements HttpHandler {
         // CLI run (see BenchmarkRunner.main) so a browser request still comes
         // back quickly, but every number below is measured on this request,
         // not replayed from a prior offline run.
-        private static final int LIVE_WARMUP_RUNS = 25;
+        private static final int LIVE_WARMUP_RUNS = 200;
         private static final int LIVE_BENCHMARK_RUNS = 15;
         private static final long LIVE_BENCHMARK_SEED = 42;
 
