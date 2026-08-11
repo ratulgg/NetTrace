@@ -1120,7 +1120,7 @@
                 jitChart.data.datasets[1].data.push(modelBMs); // Model B AI engine data point
 
                 // Refresh visibility based on active pill button
-                switchModel(config.engine);
+                jitChart.update();
 
                 if (data.packet_stream) {
                     latestStreamData = data.packet_stream;
