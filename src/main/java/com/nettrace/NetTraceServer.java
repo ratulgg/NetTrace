@@ -214,8 +214,8 @@ static class ApiTestsHandler implements HttpHandler {
             // live on every request).
             json.append(String.format("\"throughput_pps\": %d,", attackMode ? 48500 : 14820));
             json.append(String.format("\"packet_loss_pct\": %.2f,", attackMode ? 3.42 : 0.01));
-            json.append(String.format("\"model_a_passes\": %s,", toJsonArray(lastN(benchmark.modelATimesMs, 10))));
-            json.append(String.format("\"model_b_passes\": %s,", toJsonArray(lastN(benchmark.modelBTimesMs, 10))));
+            json.append(String.format("\"model_a_passes\": %s,", toJsonArray(lastN(benchmark.modelATimesMs(), 10))));
+json.append(String.format("\"model_b_passes\": %s,", toJsonArray(lastN(benchmark.modelBTimesMs(), 10))));
 
             // Multi-Hop Path Payload with Packet Queue Telemetry
             json.append("\"hops\": [");
