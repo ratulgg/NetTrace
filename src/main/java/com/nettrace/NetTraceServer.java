@@ -202,14 +202,46 @@ public class NetTraceServer {
                     ? benchmark.avgModelAMs / benchmark.avgModelBMs
                     : 1.0;
 
+            // Real, per-request throughput: sum this trace's 5 real hop
+            // latencies (base latency + PacketQueue's queueDelayMs + jitter,
+            // all already computed in tracePacketPath()) to get one packet's
+            // actual simulated end-to-end transit time. Treat that transit
+            // time as the time to clear one batch of batchSize packets
+            // pipelined back-to-back through the path -- i.e. pps =
+            // batchSize packets / (transitMs / 1000) seconds. This makes
+            // throughput respond to batchSize directly, and to attackMode
+            // indirectly through queueDelayMs (attack mode raises
+            // PacketQueue's fillRatio, which raises queueDelayMs, which
+            // raises transitMs, which lowers pps) -- the same direction a
+            // real congested link would move in.
+            double totalTransitMs = 0.0;
+            for (Packet.HopRecord hop : samplePacket.hops) {
+                totalTransitMs += hop.latencyMs;
+            }
+            double throughputPps = (batchSize * 1000.0) / totalTransitMs;
+
+            // Real packet loss: run batchSize independent synthetic packets
+            // through each of the 5 hops' actual PacketQueue fillRatio math
+            // (PacketQueue.countOverflowDrops(), same distribution
+            // processPacket() uses) and count how many hit an overflowed
+            // queue somewhere on their path. Reported as
+            // (total drops across all hops) / (batchSize * 5 hop-traversals)
+            // * 100, since each of the batchSize packets crosses all 5
+            // hops and can drop at any of them.
+            int totalDrops = 0;
+            for (TopologyEngine.RouterNode node : topology.getPath()) {
+                totalDrops += node.queue.countOverflowDrops(batchSize, attackMode);
+            }
+            double packetLossPct = (totalDrops / (double) (batchSize * 5)) * 100.0;
+
             StringBuilder json = new StringBuilder();
             json.append("{");
             json.append(String.format("\"tax_ns\": %.1f,", taxNs));
             json.append(String.format("\"tax_percent\": %.2f,", taxPercent));
             json.append(String.format("\"model_a_ratio\": %.4f,", modelARatio));
             json.append(String.format("\"detected_threats\": %d,", threatsCount));
-            json.append(String.format("\"throughput_pps\": %d,", attackMode ? 48500 : 14820));
-            json.append(String.format("\"packet_loss_pct\": %.2f,", attackMode ? 3.42 : 0.01));
+            json.append(String.format("\"throughput_pps\": %d,", Math.round(throughputPps)));
+            json.append(String.format("\"packet_loss_pct\": %.2f,", packetLossPct));
             json.append(String.format("\"model_a_passes\": %s,", toJsonArray(lastN(benchmark.modelATimesMs, 10))));
             json.append(String.format("\"model_b_passes\": %s,", toJsonArray(lastN(benchmark.modelBTimesMs, 10))));
 

@@ -53,6 +53,23 @@ class NetTraceEngineTest {
             assertTrue(result.depth > 0, "Attack traffic should elevate queue depth");
             assertTrue(result.queueDelayMs > 0.0, "Queuing delay should reflect buffer backpressure");
         }
+
+        @Test
+        @DisplayName("Batch overflow-drop sampling should stay near 0 in normal mode and rise substantially under attack")
+        void testCountOverflowDropsRespondsToAttackMode() {
+            // capacity=16 queue: normal-mode fillRatio tops out at 0.40, so
+            // depth can never reach capacity -- drops should be exactly 0.
+            // Attack-mode fillRatio ranges up to 1.00, so a meaningful
+            // fraction of a large batch should overflow.
+            int batchSize = 500;
+            int normalDrops = queue.countOverflowDrops(batchSize, false);
+            int attackDrops = queue.countOverflowDrops(batchSize, true);
+
+            assertEquals(0, normalDrops, "Normal-mode fillRatio never reaches capacity, so no drops should occur");
+            assertTrue(attackDrops > 0, "Attack-mode fillRatio should produce some overflow drops across a large batch");
+            assertTrue(attackDrops > normalDrops,
+                "Attack mode should produce meaningfully more overflow drops than normal mode");
+        }
     }
 
     // =========================================================
@@ -128,6 +145,86 @@ class NetTraceEngineTest {
             for (Packet.HopRecord hop : packet.hops) {
                 assertTrue(hop.latencyMs > 0.0, "Hop latency must be greater than 0 ms");
             }
+        }
+    }
+
+    // =========================================================
+    // 2b. LIVE THROUGHPUT / PACKET LOSS DERIVATION TESTS
+    //
+    // ApiRunHandler.handle() is a package-private HTTP handler (not a
+    // standalone unit under test), so these tests replicate its
+    // throughput_pps / packet_loss_pct formulas directly against
+    // TopologyEngine and PacketQueue -- the same real per-hop latency and
+    // queue data the handler reads -- to verify the formulas themselves
+    // behave correctly, independent of the HTTP plumbing.
+    // =========================================================
+    @Nested
+    @DisplayName("Live Throughput & Packet Loss Derivation Tests")
+    class LiveMetricsDerivationTests {
+
+        private TopologyEngine topology;
+
+        @BeforeEach
+        void setUp() {
+            topology = new TopologyEngine();
+        }
+
+        private double throughputFor(int batchSize, boolean attackMode) {
+            Packet packet = topology.tracePacketPath("PKT-TEST", "10.0.0.1", "10.0.0.2", attackMode);
+            double totalTransitMs = 0.0;
+            for (Packet.HopRecord hop : packet.hops) totalTransitMs += hop.latencyMs;
+            return (batchSize * 1000.0) / totalTransitMs;
+        }
+
+        private double packetLossPctFor(int batchSize, boolean attackMode) {
+            int totalDrops = 0;
+            for (TopologyEngine.RouterNode node : topology.getPath()) {
+                totalDrops += node.queue.countOverflowDrops(batchSize, attackMode);
+            }
+            return (totalDrops / (double) (batchSize * 5)) * 100.0;
+        }
+
+        @Test
+        @DisplayName("Throughput should scale up with batchSize, holding attackMode fixed")
+        void testThroughputScalesWithBatchSize() {
+            double smallBatchPps = throughputFor(10, false);
+            double largeBatchPps = throughputFor(1000, false);
+
+            assertTrue(largeBatchPps > smallBatchPps * 10,
+                "A 100x larger batch should yield roughly proportionally higher throughput, not a fixed constant");
+        }
+
+        @Test
+        @DisplayName("Attack mode should visibly change throughput vs. normal mode via queue-driven delay")
+        void testThroughputRespondsToAttackMode() {
+            // Average across several trials since per-hop jitter/fillRatio
+            // are randomized -- a single trace could coincidentally land
+            // close either way.
+            int trials = 50;
+            double normalTotal = 0.0;
+            double attackTotal = 0.0;
+            for (int i = 0; i < trials; i++) {
+                normalTotal += throughputFor(50, false);
+                attackTotal += throughputFor(50, true);
+            }
+            double normalAvg = normalTotal / trials;
+            double attackAvg = attackTotal / trials;
+
+            assertNotEquals(normalAvg, attackAvg, 0.01,
+                "Attack mode's higher queue delay should produce a visibly different average throughput");
+            assertTrue(attackAvg < normalAvg,
+                "Attack mode's elevated queueDelayMs should increase transit time and therefore lower throughput");
+        }
+
+        @Test
+        @DisplayName("Packet loss should be ~0% in normal mode and meaningfully higher in attack mode")
+        void testPacketLossRespondsToAttackMode() {
+            int batchSize = 500;
+            double normalLossPct = packetLossPctFor(batchSize, false);
+            double attackLossPct = packetLossPctFor(batchSize, true);
+
+            assertEquals(0.0, normalLossPct, 0.01, "Normal-mode queue fill never reaches capacity, so loss should be ~0%");
+            assertTrue(attackLossPct > 1.0, "Attack mode should produce a meaningfully non-zero loss percentage");
         }
     }
 

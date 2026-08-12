@@ -25,6 +25,16 @@ public class TopologyEngine {
     private final List<RouterNode> path = new ArrayList<>();
     private final Random random = new Random();
 
+    /**
+     * Exposes the router path so callers (e.g. ApiRunHandler) can run
+     * batch-level statistics -- such as per-hop overflow-drop counts across
+     * a request's actual batchSize -- against the same PacketQueue
+     * instances tracePacketPath() uses, without duplicating topology setup.
+     */
+    public List<RouterNode> getPath() {
+        return path;
+    }
+
     public TopologyEngine() {
         path.add(new RouterNode("r1", "Client Gateway", 1.2, 16));
         path.add(new RouterNode("r2", "Ingress Router", 3.4, 32));

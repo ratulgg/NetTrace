@@ -351,10 +351,45 @@ training accuracy), not *certain* on every single trace. `NetTraceEngineTest`
 was updated accordingly to assert the statistical tendency across repeated
 traces rather than a guaranteed hit on any one call.
 
+`GET /api/run` also used to report `"throughput_pps"` and
+`"packet_loss_pct"` as two hardcoded values keyed only on `mode` (`14820`
+pps / `0.01`% normal, `48500` pps / `3.42`% attack). Both are now derived
+from that request's real simulated hop and queue data:
+
+- **`throughput_pps`**: `tracePacketPath()`'s 5 `Packet.HopRecord` entries
+  each carry a real `latencyMs` (base latency + `PacketQueue`'s
+  `queueDelayMs` backpressure term + jitter). Summing those 5 gives one
+  packet's real simulated end-to-end transit time, `totalTransitMs`.
+  Throughput is then `(batchSize * 1000.0) / totalTransitMs` — treating
+  `batchSize` packets as pipelined back-to-back through that transit time.
+  This moves with three real inputs per request: `batchSize` (linear),
+  `mode` (attack mode raises `PacketQueue`'s `fillRatio`, which raises
+  `queueDelayMs`, which raises `totalTransitMs` and therefore *lowers*
+  throughput — the same direction a real congested link would move), and
+  ordinary per-hop jitter.
+- **`packet_loss_pct`**: `PacketQueue.countOverflowDrops(batchSize,
+  attackMode)` runs `batchSize` independent synthetic packets through that
+  node's real `fillRatio`/`overflowDrop` math (the same distribution
+  `processPacket()` uses, sampled once per packet instead of once per
+  hop) and returns how many overflowed. Summed across all 5 hops and
+  divided by `batchSize * 5` (total hop-traversals in the batch), then
+  ×100. A per-hop-only version (5 samples per request, not `batchSize`)
+  was considered and rejected: with this topology's queue capacities,
+  normal-mode fill never reaches capacity and attack-mode fill only
+  crosses it in a narrow band, so 5 samples would either always read 0%
+  or jump in coarse 20%-per-hop steps. Sampling `batchSize` packets per
+  hop instead gives a smooth, statistically meaningful percentage that
+  also scales with the batch size the client actually asked for.
+
 What's still a simulated approximation, not a real measurement: the base
 per-hop network latencies (`baseLatencyMs` for each of the 5 router
-nodes) and the synthetic queue backpressure — those represent an assumed
-network topology, not something instrumented from real packet transit.
+nodes), the router queue capacities, and the `fillRatio` ranges /
+`queueDelayMs` backpressure formula in `PacketQueue` — those are the
+topology and queueing *model* being simulated, analogous to fixed
+parameters in a physics engine. `throughput_pps` and `packet_loss_pct`
+are genuine outputs computed from that model plus this request's real
+`batchSize`/`mode`/random draw, not independently fabricated numbers —
+but the model itself is not instrumented from a real network.
 
 > The badge/benchmark-table figures referenced elsewhere for this project
 > (4.313 ms / 4.412 ms / +2.30% over 50 runs) came from a specific past
