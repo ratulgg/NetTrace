@@ -365,21 +365,33 @@
             </div>
 
             <div class="glass-panel" id="routingComparisonPanel" style="padding: 18px 20px; margin-top: 16px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px;">
-                    <div style="font-size: 0.9rem; font-weight: 800;">Routing Comparison — Static Chain vs. A* Dynamic Search</div>
-                    <div style="font-size: 0.7rem; color: var(--text-secondary);">Both computed from the same live run</div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 4px; flex-wrap: wrap; gap: 10px;">
+                    <div>
+                        <div style="font-size: 0.9rem; font-weight: 800;">Routing Comparison — Static Chain vs. A* Dynamic Search</div>
+                        <div style="font-size: 0.7rem; color: var(--text-secondary); margin-top: 2px;">Fixed path vs. congestion-aware search, both from the same live run</div>
+                    </div>
+                    <div class="model-toggle-group" role="group" aria-label="Choose which routing view to display">
+                        <button class="model-pill-btn" id="btn-route-static" onclick="setRoutingView('static')">Static (5-hop)</button>
+                        <button class="model-pill-btn" id="btn-route-astar" onclick="setRoutingView('astar')">A*</button>
+                        <button class="model-pill-btn active-model-dual" id="btn-route-both" onclick="setRoutingView('both')">Both</button>
+                    </div>
                 </div>
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-                    <div class="scrimba-card glass-panel" style="padding: 14px 16px;">
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 12px;" id="routingComparisonGrid">
+                    <div class="scrimba-card glass-panel" id="routeCardStatic" style="padding: 14px 16px;">
                         <div style="font-size: 0.75rem; font-weight: 800; color: var(--text-secondary); margin-bottom: 8px;">STATIC ROUTE (fixed 5-hop chain)</div>
+                        <div style="font-size: 0.7rem; color: var(--text-secondary); margin-bottom: 10px;">Always Gateway → Ingress → AI Firewall → Egress → Target, in that order — nothing to choose, so it's the simple baseline to compare against.</div>
                         <div id="staticRoutePath" style="font-size: 0.8rem; font-weight: 600; line-height: 1.6; color: var(--text-primary);">Run Live Simulation to see route...</div>
                         <div style="display:flex; gap: 18px; margin-top: 10px; font-size: 0.75rem; color: var(--text-secondary);">
                             <div>Total: <b id="staticRouteTotal" style="color: var(--text-primary);">--</b></div>
                             <div>Hops: <b id="staticRouteHops" style="color: var(--text-primary);">--</b></div>
                         </div>
                     </div>
-                    <div class="scrimba-card glass-panel" style="padding: 14px 16px;">
-                        <div style="font-size: 0.75rem; font-weight: 800; color: var(--text-secondary); margin-bottom: 8px;">DYNAMIC ROUTE (A* search, live congestion-weighted)</div>
+                    <div class="scrimba-card glass-panel" id="routeCardAstar" style="padding: 14px 16px;">
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap: 8px; margin-bottom: 8px;">
+                            <div style="font-size: 0.75rem; font-weight: 800; color: var(--text-secondary);">DYNAMIC ROUTE (A* search, live congestion-weighted)</div>
+                            <span id="dynamicRouteEnforcedBadge" style="display:none; font-size: 0.65rem; font-weight: 800; color: #10b981; background: rgba(16,185,129,0.12); border-radius: 5px; padding: 2px 7px; white-space: nowrap;">✓ Firewall enforced</span>
+                        </div>
+                        <div style="font-size: 0.7rem; color: var(--text-secondary); margin-bottom: 10px;">Recomputes the cheapest path on every run from live congestion. With enforcement on, it can never skip the AI Firewall — only the route <i>to and from</i> it can change.</div>
                         <div id="dynamicRoutePath" style="font-size: 0.8rem; font-weight: 600; line-height: 1.6; color: var(--text-primary);">Run Live Simulation to see route...</div>
                         <div style="display:flex; gap: 18px; margin-top: 10px; font-size: 0.75rem; color: var(--text-secondary); flex-wrap: wrap;">
                             <div>Total: <b id="dynamicRouteTotal" style="color: var(--text-primary);">--</b></div>
@@ -387,7 +399,7 @@
                             <div>Nodes expanded: <b id="dynamicRouteExpanded" style="color: var(--text-primary);">--</b></div>
                         </div>
                         <div id="dynamicRouteBypassWarning" style="display:none; margin-top: 10px; padding: 6px 10px; border-radius: 6px; background: rgba(255, 100, 100, 0.12); color: #ff8a8a; font-size: 0.7rem; font-weight: 700;">
-                            ⚠ This route bypasses the Core AI Firewall — faster, but no threat detection ran on it.
+                            ⚠ This route bypasses the Core AI Firewall — faster, but no threat detection ran on it. Turn on "Enforce" in Configuration to prevent this.
                         </div>
                     </div>
                 </div>
@@ -466,6 +478,18 @@
                     <option value="50">50 Packets</option>
                 </select>
             </div>
+            <div class="form-group">
+                <label>A* Dynamic Route — Firewall Inspection</label>
+                <select id="cfg-enforce-fw" class="form-control">
+                    <option value="true">Enforce (route always passes the AI Firewall) — recommended</option>
+                    <option value="false">Allow bypass (A* may pick a faster path that skips it)</option>
+                </select>
+                <div style="font-size: 0.7rem; color: var(--text-secondary); margin-top: 6px; line-height: 1.4;">
+                    The A* search can find a shorter path around the Core AI Firewall entirely. "Enforce" makes the
+                    backend require that node in the path (still the cheapest route that includes it); "Allow bypass"
+                    lets you see the raw cost trade-off, with a warning when it happens.
+                </div>
+            </div>
             <div style="display: flex; gap: 10px; margin-top: 20px;">
                 <button class="btn-cta" style="width: 100%;" onclick="saveConfig()">Apply Settings</button>
             </div>
@@ -538,7 +562,9 @@
 
     <script>
         let latestStreamData = [];
-        let config = { srcIp: "192.168.1.105", dstIp: "10.0.4.22", mode: "normal", batchSize: "10", engine: "dual" };
+        let config = { srcIp: "192.168.1.105", dstIp: "10.0.4.22", mode: "normal", batchSize: "10", engine: "dual", enforceFirewall: "true" };
+        // Which routing view(s) the panel below the metrics shows: 'static', 'astar', or 'both'.
+        let routingView = 'both';
         let runCount = 0;
         let runHistory = [];
 
@@ -605,16 +631,20 @@
                     document.getElementById('cfg-dst').value = config.dstIp;
                     document.getElementById('cfg-mode').value = config.mode;
                     document.getElementById('cfg-batch').value = config.batchSize;
+                    document.getElementById('cfg-enforce-fw').value = config.enforceFirewall || 'true';
                     document.getElementById('lbl-src').innerText = config.srcIp;
                     document.getElementById('lbl-dst').innerText = config.dstIp;
                     switchModel(config.engine || 'dual');
                 }
+                const savedRoutingView = localStorage.getItem('nettrace_routing_view');
+                if (savedRoutingView) setRoutingView(savedRoutingView);
             } catch (e) { /* corrupted or unavailable storage — safe to ignore, defaults still work */ }
         }
         function persistPrefs() {
             try {
                 localStorage.setItem('nettrace_theme', document.documentElement.getAttribute('data-theme'));
                 localStorage.setItem('nettrace_config', JSON.stringify(config));
+                localStorage.setItem('nettrace_routing_view', routingView);
             } catch (e) { /* storage unavailable (e.g. private mode) — non-fatal */ }
         }
 
@@ -641,6 +671,7 @@
             config.dstIp = document.getElementById('cfg-dst').value;
             config.mode = document.getElementById('cfg-mode').value;
             config.batchSize = document.getElementById('cfg-batch').value;
+            config.enforceFirewall = document.getElementById('cfg-enforce-fw').value;
             document.getElementById('lbl-src').innerText = config.srcIp;
             document.getElementById('lbl-dst').innerText = config.dstIp;
             persistPrefs();
@@ -794,13 +825,42 @@
             if (row) row.style.display = row.style.display === 'none' ? 'table-row' : 'none';
         }
 
+        // Which of the two routing cards are visible: 'static', 'astar', or
+        // 'both'. Purely a display choice -- the backend always computes
+        // both routes for the same live run (the static trace also feeds
+        // the throughput/packet-loss metrics above), so switching this
+        // never changes what /api/run does, only what's shown.
+        function setRoutingView(view) {
+            routingView = view;
+            const staticCard = document.getElementById('routeCardStatic');
+            const astarCard = document.getElementById('routeCardAstar');
+            const grid = document.getElementById('routingComparisonGrid');
+
+            staticCard.style.display = (view === 'static' || view === 'both') ? 'block' : 'none';
+            astarCard.style.display = (view === 'astar' || view === 'both') ? 'block' : 'none';
+            grid.style.gridTemplateColumns = (view === 'both') ? '1fr 1fr' : '1fr';
+
+            ['btn-route-static', 'btn-route-astar', 'btn-route-both'].forEach(id => {
+                document.getElementById(id).className = 'model-pill-btn';
+            });
+            if (view === 'static') document.getElementById('btn-route-static').className = 'model-pill-btn active-model-a';
+            else if (view === 'astar') document.getElementById('btn-route-astar').className = 'model-pill-btn active-model-b';
+            else document.getElementById('btn-route-both').className = 'model-pill-btn active-model-dual';
+
+            persistPrefs();
+        }
+
         // Populates the "Routing Comparison" panel from a single /api/run
         // response: data.hops is the static fixed-chain trace (unchanged
         // route every request); data.dynamic_route is a fresh A* search
         // over a separate multi-path graph, using this request's live
         // congestion snapshot -- so under attack mode it can (and often
-        // does) pick a different, cheaper path than last run, sometimes one
-        // that skips the firewall entirely.
+        // does) pick a different, cheaper path than last run. When firewall
+        // enforcement is on (data.enforced_firewall), that search is
+        // constrained to always include the AI Firewall node, so it can
+        // change ROUTE without ever being able to skip inspection; with
+        // enforcement off, it's free to pick the bypass link, and
+        // data.dynamic_route.bypassed_firewall reports when it did.
         function renderRoutingComparison(data) {
             if (data.hops) {
                 const staticTotal = data.hops.reduce((sum, h) => sum + h.delay_ms, 0);
@@ -811,12 +871,14 @@
 
             const dyn = data.dynamic_route;
             const bypassWarning = document.getElementById('dynamicRouteBypassWarning');
+            const enforcedBadge = document.getElementById('dynamicRouteEnforcedBadge');
             if (dyn) {
                 document.getElementById('dynamicRoutePath').innerText = (dyn.path || []).join(' → ');
                 document.getElementById('dynamicRouteTotal').innerText = `${dyn.total_cost_ms.toFixed(2)} ms`;
                 document.getElementById('dynamicRouteHops').innerText = `${dyn.hop_count}`;
                 document.getElementById('dynamicRouteExpanded').innerText = `${dyn.nodes_expanded}`;
                 if (bypassWarning) bypassWarning.style.display = dyn.bypassed_firewall ? 'block' : 'none';
+                if (enforcedBadge) enforcedBadge.style.display = data.enforced_firewall ? 'inline-block' : 'none';
             } else if (bypassWarning) {
                 bypassWarning.style.display = 'none';
             }
@@ -830,7 +892,7 @@
             const isModelA = config.engine === 'modelA';
 
             try {
-                const url = `/api/run?srcIp=${encodeURIComponent(config.srcIp)}&dstIp=${encodeURIComponent(config.dstIp)}&mode=${config.mode}&batchSize=${config.batchSize}`;
+                const url = `/api/run?srcIp=${encodeURIComponent(config.srcIp)}&dstIp=${encodeURIComponent(config.dstIp)}&mode=${config.mode}&batchSize=${config.batchSize}&enforceFirewall=${config.enforceFirewall}`;
                 const res = await fetch(url);
                 if (!res.ok) throw new Error(`Server responded ${res.status}`);
                 const data = await res.json();
@@ -986,7 +1048,9 @@
             { title: '▶ Run a simulation', body: 'Hit <b>RUN LIVE SIMULATION</b> up top to fire a batch of synthetic packets through both engines. Watch the hop route animate as packets travel through each node.' },
             { title: '🔀 Compare models', body: 'Use the <b>Model A / Model B / Dual</b> toggle to switch between the procedural baseline, the pattern-driven engine, or see both at once in the telemetry chart.' },
             { title: '🛡 AI threat detection', body: 'Model B\'s "Core AI Firewall" node scores each packet with a trained logistic-regression classifier. Flagged packets get a <b>Why?</b> button in the log — click it to see exactly which features triggered the flag.' },
-            { title: '⚙ Make it yours', body: 'Open <b>Configuration</b> in the sidebar to change the source/target IP, traffic profile, or batch size — and pick a theme from the dropdown. Your choices are remembered next time you visit.' },
+            { title: '🧭 Static vs. A* routing', body: 'The <b>Routing Comparison</b> panel shows two ways to get a packet across the network: a fixed 5-hop chain, and a live A* search that reroutes around congestion. Use the <b>Static / A* / Both</b> toggle to focus on either one.' },
+            { title: '🔒 Firewall enforcement', body: 'A* can find a faster path that skips the AI Firewall entirely. In <b>Configuration</b>, "Enforce" (the default) forces every A* route through the firewall — still the cheapest route that includes it — so the AI check can\'t be silently routed around. Switch to "Allow bypass" to see the raw cost trade-off instead.' },
+            { title: '⚙ Make it yours', body: 'Open <b>Configuration</b> in the sidebar to change the source/target IP, traffic profile, batch size, or firewall enforcement — and pick a theme from the dropdown. Your choices are remembered next time you visit.' },
         ];
         let tourStepIndex = 0;
         function renderTourStep() {

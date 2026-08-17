@@ -178,11 +178,59 @@ public class NetTraceServer {
                 return;
             }
 
+            try {
+                handleRun(exchange);
+            } catch (BadRequestException e) {
+                sendError(exchange, 400, e.getMessage());
+            } catch (Exception e) {
+                // Anything unexpected (e.g. an internal invariant this
+                // handler didn't anticipate) still gets a clean JSON error
+                // response instead of the client seeing a reset connection.
+                System.err.println("Unhandled error in /api/run: " + e);
+                sendError(exchange, 500, "Internal error while running the simulation.");
+            }
+        }
+
+        /** Thrown for any client-supplied query parameter that's malformed
+         *  or out of range, so it maps to a 400 instead of a 500 or a
+         *  crashed connection. */
+        private static class BadRequestException extends RuntimeException {
+            BadRequestException(String message) { super(message); }
+        }
+
+        private void sendError(HttpExchange exchange, int status, String message) throws IOException {
+            String json = "{\"error\": \"" + jsonEscape(message) + "\"}";
+            byte[] bytes = json.getBytes("UTF-8");
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.sendResponseHeaders(status, bytes.length);
+            try (OutputStream os = exchange.getResponseBody()) { os.write(bytes); }
+        }
+
+        private void handleRun(HttpExchange exchange) throws IOException {
             Map<String, String> query = parseQuery(exchange.getRequestURI().getQuery());
             String srcIp = query.getOrDefault("srcIp", "192.168.1.105");
             String dstIp = query.getOrDefault("dstIp", "10.0.4.22");
+            if (srcIp.length() > 64 || dstIp.length() > 64) {
+                throw new BadRequestException("srcIp/dstIp must be 64 characters or fewer.");
+            }
             boolean attackMode = "attack".equalsIgnoreCase(query.getOrDefault("mode", "normal"));
-            int batchSize = Integer.parseInt(query.getOrDefault("batchSize", "10"));
+
+            int batchSize;
+            try {
+                batchSize = Integer.parseInt(query.getOrDefault("batchSize", "10"));
+            } catch (NumberFormatException e) {
+                throw new BadRequestException("batchSize must be an integer.");
+            }
+            if (batchSize < 1 || batchSize > 1000) {
+                throw new BadRequestException("batchSize must be between 1 and 1000.");
+            }
+
+            // Whether the A* dynamic route is allowed to skip the Core AI
+            // Firewall entirely. Defaults to true (enforced) so the AI
+            // threat classifier can't be silently routed around unless the
+            // user explicitly opts into "free search" mode to see the
+            // trade-off for themselves.
+            boolean enforceFirewall = !"false".equalsIgnoreCase(query.getOrDefault("enforceFirewall", "true"));
 
             Packet samplePacket = topology.tracePacketPath("PKT-9902", srcIp, dstIp, attackMode);
             List<SyntheticPacketStream.SyntheticPacket> streamBatch = streamGen.generateStreamBatch(batchSize, attackMode, srcIp, dstIp);
@@ -246,8 +294,9 @@ public class NetTraceServer {
             // on every request, so it can (and under attack mode, often
             // does) choose a different path than last time.
             Map<NetworkGraph.Edge, Double> routeCosts = routingGraph.snapshotEdgeCosts(attackMode);
+            String mustPassThrough = enforceFirewall ? NetworkGraph.FIREWALL_NODE : null;
             AStarRouter.RouteResult dynamicRoute =
-                    AStarRouter.findPath(routingGraph, routeCosts, NetworkGraph.GATEWAY, NetworkGraph.TARGET);
+                    AStarRouter.findPath(routingGraph, routeCosts, NetworkGraph.GATEWAY, NetworkGraph.TARGET, mustPassThrough);
 
             StringBuilder json = new StringBuilder();
             json.append("{");
@@ -264,7 +313,7 @@ public class NetTraceServer {
             for (int i = 0; i < samplePacket.hops.size(); i++) {
                 Packet.HopRecord hop = samplePacket.hops.get(i);
                 json.append(String.format("{\"node\":\"%s\",\"delay_ms\":%.2f,\"threat\":%b,\"queue_depth\":%d,\"queue_capacity\":%d,\"dropped\":%b}", 
-                    hop.nodeName, hop.latencyMs, hop.threatDetected, hop.queueDepth, hop.queueCapacity, hop.wasDropped));
+                    jsonEscape(hop.nodeName), hop.latencyMs, hop.threatDetected, hop.queueDepth, hop.queueCapacity, hop.wasDropped));
                 if (i < samplePacket.hops.size() - 1) json.append(",");
             }
             json.append("],");
@@ -275,6 +324,7 @@ public class NetTraceServer {
             json.append(String.format("\"nodes_expanded\": %d,", dynamicRoute.nodesExpanded()));
             json.append(String.format("\"hop_count\": %d,", dynamicRoute.path().size() - 1));
             json.append(String.format("\"bypassed_firewall\": %b,", dynamicRoute.bypassedFirewall()));
+            json.append(String.format("\"enforced_firewall\": %b,", enforceFirewall));
             json.append(String.format("\"edge_costs\": %s", toJsonArray(dynamicRoute.edgeCosts())));
             json.append("},");
 
@@ -283,7 +333,8 @@ public class NetTraceServer {
                 SyntheticPacketStream.SyntheticPacket p = streamBatch.get(i);
                 json.append(String.format(
                     "{\"id\":\"%s\",\"srcIp\":\"%s\",\"dstIp\":\"%s\",\"srcPort\":%d,\"dstPort\":%d,\"protocol\":\"%s\",\"flags\":\"%s\",\"size\":%d,\"threat\":%b,\"type\":\"%s\"}",
-                    p.id, p.srcIp, p.dstIp, p.srcPort, p.dstPort, p.protocol, p.flags, p.sizeBytes, p.isThreat, p.attackType
+                    jsonEscape(p.id), jsonEscape(p.srcIp), jsonEscape(p.dstIp), p.srcPort, p.dstPort,
+                    jsonEscape(p.protocol), jsonEscape(p.flags), p.sizeBytes, p.isThreat, jsonEscape(p.attackType)
                 ));
                 if (i < streamBatch.size() - 1) json.append(",");
             }
@@ -300,10 +351,24 @@ public class NetTraceServer {
             Map<String, String> map = new HashMap<>();
             if (queryStr == null || queryStr.isEmpty()) return map;
             for (String param : queryStr.split("&")) {
-                String[] pair = param.split("=");
-                if (pair.length > 1) map.put(pair[0], pair[1]);
+                // limit=2 so a value that itself contains "=" (e.g. base64-ish
+                // input) doesn't get truncated at the first "=" inside it.
+                String[] pair = param.split("=", 2);
+                if (pair.length > 1) {
+                    map.put(urlDecode(pair[0]), urlDecode(pair[1]));
+                } else if (pair.length == 1 && !pair[0].isEmpty()) {
+                    map.put(urlDecode(pair[0]), "");
+                }
             }
             return map;
+        }
+
+        private String urlDecode(String s) {
+            try {
+                return java.net.URLDecoder.decode(s, "UTF-8");
+            } catch (Exception e) {
+                return s; // malformed escape sequence - fall back to the raw value rather than failing the request
+            }
         }
 
         private List<Double> lastN(List<Double> values, int n) {
@@ -324,10 +389,38 @@ public class NetTraceServer {
         private String toJsonStringArray(List<String> values) {
             StringBuilder sb = new StringBuilder("[");
             for (int i = 0; i < values.size(); i++) {
-                sb.append("\"").append(values.get(i).replace("\"", "\\\"")).append("\"");
+                sb.append("\"").append(jsonEscape(values.get(i))).append("\"");
                 if (i < values.size() - 1) sb.append(",");
             }
             sb.append("]");
+            return sb.toString();
+        }
+
+        /** Minimal JSON string escaping for the hand-built JSON in this
+         *  class. Escapes the characters that would otherwise either break
+         *  the JSON grammar (", \) or produce invalid/control-character
+         *  JSON (newlines, tabs, other control chars). Every %s placeholder
+         *  in this handler that carries client-supplied or otherwise
+         *  non-constant text should be wrapped in this before formatting. */
+        private static String jsonEscape(String s) {
+            if (s == null) return "";
+            StringBuilder sb = new StringBuilder(s.length() + 8);
+            for (int i = 0; i < s.length(); i++) {
+                char c = s.charAt(i);
+                switch (c) {
+                    case '"': sb.append("\\\""); break;
+                    case '\\': sb.append("\\\\"); break;
+                    case '\n': sb.append("\\n"); break;
+                    case '\r': sb.append("\\r"); break;
+                    case '\t': sb.append("\\t"); break;
+                    default:
+                        if (c < 0x20) {
+                            sb.append(String.format("\\u%04x", (int) c));
+                        } else {
+                            sb.append(c);
+                        }
+                }
+            }
             return sb.toString();
         }
     }

@@ -305,7 +305,7 @@ docker run -p 5000:5000 nettrace
 | Endpoint | Description |
 |---|---|
 | `GET /` | Dashboard UI |
-| `GET /api/run?srcIp=&dstIp=&mode=&batchSize=` | Runs one live trace + live Model A/B benchmark, returns JSON |
+| `GET /api/run?srcIp=&dstIp=&mode=&batchSize=&enforceFirewall=` | Runs one live trace + live Model A/B benchmark, returns JSON. Returns 400 with `{"error": "..."}` for invalid input. |
 | `GET /api/tests` | Runs backend assertions live, returns JSON results for the UI's test panel |
 
 ## Benchmark methodology
@@ -399,6 +399,63 @@ but the model itself is not instrumented from a real network.
 > result rather than a number you can currently regenerate with a single
 > documented command.
 
+### Request validation and JSON safety
+
+`GET /api/run` validates its query parameters before doing any work, and
+returns a clean JSON error (`{"error": "..."}`, HTTP 400) instead of an
+uncaught exception or a broken response for:
+
+- a non-numeric `batchSize`
+- a `batchSize` outside `1`–`1000`
+- a `srcIp`/`dstIp` longer than 64 characters
+
+Any other unexpected failure returns HTTP 500 with a generic JSON error
+body, logged server-side, rather than the client seeing a reset
+connection.
+
+All string values that end up inside the hand-built JSON response
+(`srcIp`, `dstIp`, packet IDs, protocol/flag strings, etc.) are passed
+through a small `jsonEscape()` helper before being interpolated, so a
+value containing a `"`, `\`, or a raw control character can't break the
+response's structure. Query parameters are also properly URL-decoded
+(`parseQuery()` no longer just splits on `=` and `&`), so a percent-encoded
+value round-trips correctly instead of arriving at the JSON layer still
+encoded. `NetTraceServerApiTest` exercises this end-to-end over real HTTP,
+including adversarial input containing quotes, backslashes, and newlines.
+
+### A* dynamic routing and firewall enforcement
+
+`dynamic_route` comes from `AStarRouter` searching a separate multi-path
+graph (`NetworkGraph`) — six nodes, including two ingress routers and a
+bypass link that reaches Egress *without* going through the Core AI
+Firewall at all. Because A* optimizes purely on cost, a free search can
+legitimately choose that bypass link when it's cheaper, which means a
+packet's route is decided without ever being scored by
+`AiThreatClassifier`.
+
+`enforceFirewall` (query param on `/api/run`, default `true`) controls
+whether that's allowed:
+
+- **`enforceFirewall=true` (default)** — `AStarRouter.findPath(..., NetworkGraph.FIREWALL_NODE)`
+  is called with the firewall node as a required waypoint. Internally this
+  runs A* twice — start→firewall, then firewall→goal — and concatenates
+  the two optimal legs, which is the cheapest path *that is guaranteed to
+  include the firewall*, not merely a path that happens to. `bypassed_firewall`
+  in the response is always `false` in this mode; the response also
+  includes `"enforced_firewall": true` so the dashboard can show the
+  "✓ Firewall enforced" badge instead of a warning.
+- **`enforceFirewall=false`** — the original free search: A* may pick the
+  bypass link if it's cheaper. `bypassed_firewall` reports whether it did,
+  and the dashboard shows a warning instead of the badge. Useful for
+  seeing the raw cost trade-off the constrained mode is giving up.
+
+In the dashboard, this is the "Firewall Inspection" setting in
+**Configuration**, and the **Static / A* / Both** toggle above the
+Routing Comparison panel is a separate, purely client-side choice of
+which route card(s) to display — both routes are computed on the backend
+either way, since the static trace also feeds the throughput and packet
+loss metrics.
+
 ## UI/UX enhancements
 
 These are implemented in `src/main/resources/index.html` (no backend
@@ -431,10 +488,18 @@ changes needed):
 - **Preference persistence** — theme and last-used source/target IP,
   traffic mode, batch size, and model selection are saved to
   `localStorage` and restored on the next visit.
-- **First-run onboarding tour** — a 5-step guided walkthrough (what
+- **First-run onboarding tour** — a 7-step guided walkthrough (what
   Model A/B are, how to run a simulation, how the AI firewall works,
-  where Configuration lives) shows once for new visitors, dismissible
-  and remembered via `localStorage`.
+  static vs. A* routing, firewall enforcement, where Configuration lives)
+  shows once for new visitors, dismissible and remembered via `localStorage`.
+- **Routing view toggle** — a **Static / A\* / Both** pill toggle above
+  the Routing Comparison panel switches which route card(s) are shown;
+  choice is remembered via `localStorage`.
+- **Firewall enforcement control** — a Configuration setting toggles
+  whether the A* search is allowed to pick a path that skips the Core AI
+  Firewall (see "A* dynamic routing and firewall enforcement" above),
+  with a badge or warning in the routing panel reflecting the current
+  mode.
 
 **Still just an idea (not implemented — needs backend changes):**
 - Replacing the polling-style "click to run" flow with a streaming view

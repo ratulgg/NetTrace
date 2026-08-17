@@ -208,4 +208,78 @@ class AStarRouterTest {
             assertTrue(result.path().contains(NetworkGraph.FIREWALL_NODE));
         }
     }
+
+    @Nested
+    @DisplayName("Enforced firewall mode (mustPassThrough)")
+    class EnforcedFirewallMode {
+
+        @Test
+        @DisplayName("Constrained search still routes through FW even when the bypass link is far cheaper")
+        void enforcedModeNeverBypassesEvenWhenBypassIsCheaper() {
+            Map<NetworkGraph.Edge, Double> costs = baseCostSnapshot();
+            // Same setup as the free-search bypass test: make the bypass
+            // link dramatically cheaper. In free mode this wins; in
+            // enforced mode it must NOT be taken.
+            for (NetworkGraph.Edge edge : graph.neighbors("R1")) {
+                if (edge.to().equals("EGRESS")) costs.put(edge, 0.01);
+            }
+            for (NetworkGraph.Edge edge : graph.neighbors(NetworkGraph.GATEWAY)) {
+                if (edge.to().equals("R1")) costs.put(edge, 0.01);
+            }
+
+            AStarRouter.RouteResult result = AStarRouter.findPath(
+                    graph, costs, NetworkGraph.GATEWAY, NetworkGraph.TARGET, NetworkGraph.FIREWALL_NODE);
+
+            assertFalse(result.bypassedFirewall());
+            assertTrue(result.path().contains(NetworkGraph.FIREWALL_NODE),
+                    "Enforced mode must route through the firewall even when a cheaper bypass exists");
+            assertEquals(NetworkGraph.GATEWAY, result.path().get(0));
+            assertEquals(NetworkGraph.TARGET, result.path().get(result.path().size() - 1));
+        }
+
+        @Test
+        @DisplayName("Enforced mode is still the cheapest path AMONG those that pass through FW")
+        void enforcedModeIsOptimalSubjectToConstraint() {
+            Map<NetworkGraph.Edge, Double> costs = baseCostSnapshot();
+
+            AStarRouter.RouteResult enforced = AStarRouter.findPath(
+                    graph, costs, NetworkGraph.GATEWAY, NetworkGraph.TARGET, NetworkGraph.FIREWALL_NODE);
+
+            // Both firewall-inclusive candidate paths, cost by hand.
+            double viaR1 = costs.entrySet().stream()
+                    .filter(e -> (e.getKey().from().equals("GATEWAY") && e.getKey().to().equals("R1"))
+                            || (e.getKey().from().equals("R1") && e.getKey().to().equals(NetworkGraph.FIREWALL_NODE))
+                            || (e.getKey().from().equals(NetworkGraph.FIREWALL_NODE) && e.getKey().to().equals("EGRESS"))
+                            || (e.getKey().from().equals("EGRESS") && e.getKey().to().equals(NetworkGraph.TARGET)))
+                    .mapToDouble(Map.Entry::getValue).sum();
+            double viaR2 = costs.entrySet().stream()
+                    .filter(e -> (e.getKey().from().equals("GATEWAY") && e.getKey().to().equals("R2"))
+                            || (e.getKey().from().equals("R2") && e.getKey().to().equals(NetworkGraph.FIREWALL_NODE))
+                            || (e.getKey().from().equals(NetworkGraph.FIREWALL_NODE) && e.getKey().to().equals("EGRESS"))
+                            || (e.getKey().from().equals("EGRESS") && e.getKey().to().equals(NetworkGraph.TARGET)))
+                    .mapToDouble(Map.Entry::getValue).sum();
+
+            assertEquals(Math.min(viaR1, viaR2), enforced.totalCostMs(), 1e-9);
+        }
+
+        @Test
+        @DisplayName("Null mustPassThrough behaves exactly like the unconstrained overload")
+        void nullMustPassThroughIsFreeSearch() {
+            Map<NetworkGraph.Edge, Double> costs = baseCostSnapshot();
+            for (NetworkGraph.Edge edge : graph.neighbors("R1")) {
+                if (edge.to().equals("EGRESS")) costs.put(edge, 0.01);
+            }
+            for (NetworkGraph.Edge edge : graph.neighbors(NetworkGraph.GATEWAY)) {
+                if (edge.to().equals("R1")) costs.put(edge, 0.01);
+            }
+
+            AStarRouter.RouteResult free = AStarRouter.findPath(graph, costs, NetworkGraph.GATEWAY, NetworkGraph.TARGET);
+            AStarRouter.RouteResult explicitNull =
+                    AStarRouter.findPath(graph, costs, NetworkGraph.GATEWAY, NetworkGraph.TARGET, null);
+
+            assertEquals(free.path(), explicitNull.path());
+            assertEquals(free.totalCostMs(), explicitNull.totalCostMs(), 1e-9);
+            assertTrue(explicitNull.bypassedFirewall());
+        }
+    }
 }

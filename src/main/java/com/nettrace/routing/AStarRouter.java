@@ -23,6 +23,15 @@ import java.util.PriorityQueue;
  * can ever cost less than remaining_hops * minEdgeBaseLatency. That
  * admissibility is what makes the path this returns provably optimal for
  * the given snapshot, not just "a path some search happened to find."
+ *
+ * Two modes are exposed:
+ *   - findPath(graph, costs, start, goal)                 -- free search,
+ *     may return a path that skips the firewall (bypassedFirewall=true).
+ *   - findPath(graph, costs, start, goal, mustPassThrough) -- constrained
+ *     search that is guaranteed to route through mustPassThrough (e.g.
+ *     NetworkGraph.FIREWALL_NODE), still optimal subject to that
+ *     constraint. Use this when the AI threat classifier must never be
+ *     skipped, regardless of how much faster the bypass link looks.
  */
 public class AStarRouter {
 
@@ -40,8 +49,66 @@ public class AStarRouter {
                                   List<String> path, List<Double> edgeCosts) {
     }
 
+    /**
+     * Free search: A* is allowed to pick whichever path is cheapest overall,
+     * even one that skips a security checkpoint like the firewall (see
+     * {@code bypassedFirewall} on the result). Equivalent to
+     * {@code findPath(graph, edgeCosts, start, goal, null)}.
+     */
     public static RouteResult findPath(NetworkGraph graph, Map<NetworkGraph.Edge, Double> edgeCosts,
                                         String start, String goal) {
+        return findPath(graph, edgeCosts, start, goal, null);
+    }
+
+    /**
+     * Search with an optional required waypoint. When {@code mustPassThrough}
+     * is non-null, the returned path is the cheapest path from
+     * {@code start} to {@code goal} that is GUARANTEED to visit that node
+     * (e.g. {@link NetworkGraph#FIREWALL_NODE}) — it is not merely a
+     * preference the search happens to satisfy. This is what makes
+     * "enforce firewall inspection" mode a real constraint rather than a
+     * warning label on a path that could still skip it.
+     * <p>
+     * Implementation: run A* twice — start→waypoint, then waypoint→goal —
+     * and concatenate. Each leg is independently cost-optimal for the same
+     * live edge-cost snapshot, so the concatenation is the cheapest path
+     * through that waypoint (a textbook reduction: "shortest path visiting
+     * node X" decomposes into "shortest path to X" + "shortest path from X",
+     * both of which A* already solves optimally). {@code bypassedFirewall}
+     * on the result is always {@code false} in this mode, since the path is
+     * constructed to pass through the waypoint by construction, not merely
+     * observed to.
+     */
+    public static RouteResult findPath(NetworkGraph graph, Map<NetworkGraph.Edge, Double> edgeCosts,
+                                        String start, String goal, String mustPassThrough) {
+        if (mustPassThrough == null || mustPassThrough.equals(start) || mustPassThrough.equals(goal)) {
+            return search(graph, edgeCosts, start, goal);
+        }
+
+        RouteResult firstLeg = search(graph, edgeCosts, start, mustPassThrough);
+        RouteResult secondLeg = search(graph, edgeCosts, mustPassThrough, goal);
+
+        List<String> combinedPath = new ArrayList<>(firstLeg.path());
+        combinedPath.addAll(secondLeg.path().subList(1, secondLeg.path().size()));
+
+        List<String> combinedDisplayPath = new ArrayList<>(firstLeg.displayPath());
+        combinedDisplayPath.addAll(secondLeg.displayPath().subList(1, secondLeg.displayPath().size()));
+
+        List<Double> combinedEdgeCosts = new ArrayList<>(firstLeg.edgeCosts());
+        combinedEdgeCosts.addAll(secondLeg.edgeCosts());
+
+        return new RouteResult(
+                combinedPath,
+                combinedDisplayPath,
+                firstLeg.totalCostMs() + secondLeg.totalCostMs(),
+                firstLeg.nodesExpanded() + secondLeg.nodesExpanded(),
+                combinedEdgeCosts,
+                false
+        );
+    }
+
+    private static RouteResult search(NetworkGraph graph, Map<NetworkGraph.Edge, Double> edgeCosts,
+                                       String start, String goal) {
         double minEdge = graph.minEdgeBaseLatency();
         Map<String, Integer> hopsToGoal = graph.hopDistancesTo(goal);
 
