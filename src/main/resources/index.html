@@ -364,6 +364,35 @@
                 </div>
             </div>
 
+            <div class="glass-panel" id="routingComparisonPanel" style="padding: 18px 20px; margin-top: 16px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px;">
+                    <div style="font-size: 0.9rem; font-weight: 800;">Routing Comparison — Static Chain vs. A* Dynamic Search</div>
+                    <div style="font-size: 0.7rem; color: var(--text-secondary);">Both computed from the same live run</div>
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div class="scrimba-card glass-panel" style="padding: 14px 16px;">
+                        <div style="font-size: 0.75rem; font-weight: 800; color: var(--text-secondary); margin-bottom: 8px;">STATIC ROUTE (fixed 5-hop chain)</div>
+                        <div id="staticRoutePath" style="font-size: 0.8rem; font-weight: 600; line-height: 1.6; color: var(--text-primary);">Run Live Simulation to see route...</div>
+                        <div style="display:flex; gap: 18px; margin-top: 10px; font-size: 0.75rem; color: var(--text-secondary);">
+                            <div>Total: <b id="staticRouteTotal" style="color: var(--text-primary);">--</b></div>
+                            <div>Hops: <b id="staticRouteHops" style="color: var(--text-primary);">--</b></div>
+                        </div>
+                    </div>
+                    <div class="scrimba-card glass-panel" style="padding: 14px 16px;">
+                        <div style="font-size: 0.75rem; font-weight: 800; color: var(--text-secondary); margin-bottom: 8px;">DYNAMIC ROUTE (A* search, live congestion-weighted)</div>
+                        <div id="dynamicRoutePath" style="font-size: 0.8rem; font-weight: 600; line-height: 1.6; color: var(--text-primary);">Run Live Simulation to see route...</div>
+                        <div style="display:flex; gap: 18px; margin-top: 10px; font-size: 0.75rem; color: var(--text-secondary); flex-wrap: wrap;">
+                            <div>Total: <b id="dynamicRouteTotal" style="color: var(--text-primary);">--</b></div>
+                            <div>Hops: <b id="dynamicRouteHops" style="color: var(--text-primary);">--</b></div>
+                            <div>Nodes expanded: <b id="dynamicRouteExpanded" style="color: var(--text-primary);">--</b></div>
+                        </div>
+                        <div id="dynamicRouteBypassWarning" style="display:none; margin-top: 10px; padding: 6px 10px; border-radius: 6px; background: rgba(255, 100, 100, 0.12); color: #ff8a8a; font-size: 0.7rem; font-weight: 700;">
+                            ⚠ This route bypasses the Core AI Firewall — faster, but no threat detection ran on it.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="bottom-split-row">
                 <div class="table-card glass-panel">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -765,6 +794,34 @@
             if (row) row.style.display = row.style.display === 'none' ? 'table-row' : 'none';
         }
 
+        // Populates the "Routing Comparison" panel from a single /api/run
+        // response: data.hops is the static fixed-chain trace (unchanged
+        // route every request); data.dynamic_route is a fresh A* search
+        // over a separate multi-path graph, using this request's live
+        // congestion snapshot -- so under attack mode it can (and often
+        // does) pick a different, cheaper path than last run, sometimes one
+        // that skips the firewall entirely.
+        function renderRoutingComparison(data) {
+            if (data.hops) {
+                const staticTotal = data.hops.reduce((sum, h) => sum + h.delay_ms, 0);
+                document.getElementById('staticRoutePath').innerText = data.hops.map(h => h.node).join(' → ');
+                document.getElementById('staticRouteTotal').innerText = `${staticTotal.toFixed(2)} ms`;
+                document.getElementById('staticRouteHops').innerText = `${data.hops.length}`;
+            }
+
+            const dyn = data.dynamic_route;
+            const bypassWarning = document.getElementById('dynamicRouteBypassWarning');
+            if (dyn) {
+                document.getElementById('dynamicRoutePath').innerText = (dyn.path || []).join(' → ');
+                document.getElementById('dynamicRouteTotal').innerText = `${dyn.total_cost_ms.toFixed(2)} ms`;
+                document.getElementById('dynamicRouteHops').innerText = `${dyn.hop_count}`;
+                document.getElementById('dynamicRouteExpanded').innerText = `${dyn.nodes_expanded}`;
+                if (bypassWarning) bypassWarning.style.display = dyn.bypassed_firewall ? 'block' : 'none';
+            } else if (bypassWarning) {
+                bypassWarning.style.display = 'none';
+            }
+        }
+
         async function runSimulation() {
             const btn = document.getElementById('run-btn');
             btn.innerText = "TRACING STREAM...";
@@ -779,6 +836,7 @@
                 const data = await res.json();
 
                 if (data.hops) await runPhotonSequence(data.hops, isModelA);
+                renderRoutingComparison(data);
                 document.querySelectorAll('#metricCardsGrid .scrimba-card').forEach(c => c.classList.remove('is-loading'));
 
                 const taxElement = document.getElementById('tax-val');

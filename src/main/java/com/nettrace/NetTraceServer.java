@@ -1,6 +1,8 @@
 package com.nettrace;
 
 import com.nettrace.benchmark.BenchmarkRunner;
+import com.nettrace.routing.AStarRouter;
+import com.nettrace.routing.NetworkGraph;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
@@ -160,6 +162,7 @@ public class NetTraceServer {
     static class ApiRunHandler implements HttpHandler {
         private final TopologyEngine topology = new TopologyEngine();
         private final SyntheticPacketStream streamGen = new SyntheticPacketStream();
+        private final NetworkGraph routingGraph = new NetworkGraph();
 
         private static final int LIVE_WARMUP_RUNS = 200;
         private static final int LIVE_BENCHMARK_RUNS = 15;
@@ -234,6 +237,18 @@ public class NetTraceServer {
             }
             double packetLossPct = (totalDrops / (double) (batchSize * 5)) * 100.0;
 
+            // Dynamic (A*) routing: a real, congestion-aware path search over
+            // a SEPARATE multi-path graph (NetworkGraph), run alongside the
+            // static fixed-chain trace above so both modes' results can be
+            // returned in one response for direct comparison. The static
+            // route above always takes the same 5 hops in the same order;
+            // this route is recomputed from a fresh live congestion snapshot
+            // on every request, so it can (and under attack mode, often
+            // does) choose a different path than last time.
+            Map<NetworkGraph.Edge, Double> routeCosts = routingGraph.snapshotEdgeCosts(attackMode);
+            AStarRouter.RouteResult dynamicRoute =
+                    AStarRouter.findPath(routingGraph, routeCosts, NetworkGraph.GATEWAY, NetworkGraph.TARGET);
+
             StringBuilder json = new StringBuilder();
             json.append("{");
             json.append(String.format("\"tax_ns\": %.1f,", taxNs));
@@ -253,6 +268,15 @@ public class NetTraceServer {
                 if (i < samplePacket.hops.size() - 1) json.append(",");
             }
             json.append("],");
+
+            json.append("\"dynamic_route\": {");
+            json.append(String.format("\"path\": %s,", toJsonStringArray(dynamicRoute.displayPath())));
+            json.append(String.format("\"total_cost_ms\": %.2f,", dynamicRoute.totalCostMs()));
+            json.append(String.format("\"nodes_expanded\": %d,", dynamicRoute.nodesExpanded()));
+            json.append(String.format("\"hop_count\": %d,", dynamicRoute.path().size() - 1));
+            json.append(String.format("\"bypassed_firewall\": %b,", dynamicRoute.bypassedFirewall()));
+            json.append(String.format("\"edge_costs\": %s", toJsonArray(dynamicRoute.edgeCosts())));
+            json.append("},");
 
             json.append("\"packet_stream\": [");
             for (int i = 0; i < streamBatch.size(); i++) {
@@ -291,6 +315,16 @@ public class NetTraceServer {
             StringBuilder sb = new StringBuilder("[");
             for (int i = 0; i < values.size(); i++) {
                 sb.append(String.format("%.3f", values.get(i)));
+                if (i < values.size() - 1) sb.append(",");
+            }
+            sb.append("]");
+            return sb.toString();
+        }
+
+        private String toJsonStringArray(List<String> values) {
+            StringBuilder sb = new StringBuilder("[");
+            for (int i = 0; i < values.size(); i++) {
+                sb.append("\"").append(values.get(i).replace("\"", "\\\"")).append("\"");
                 if (i < values.size() - 1) sb.append(",");
             }
             sb.append("]");
